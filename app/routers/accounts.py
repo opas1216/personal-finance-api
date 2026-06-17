@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.account import AccountCreate, AccountUpdate, AccountResponse
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
 #   - 出現在路徑 /{user_id} → path parameter
 #   - 只在函數參數裡，沒有在路徑裡 → query parameter（自動）
 
-@router.post("/", response_model=AccountResponse)
+@router.post("/", response_model=AccountResponse, status_code=status.HTTP_201_CREATED)
 def create(data: AccountCreate, db: Session = Depends(get_db)):
     return account_service.create_account(db, data)
 
