@@ -14,6 +14,11 @@ class UserResponse(BaseModel):
 
     model_config = {'from_attributes': True}
 
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
 # JWT(Json Web Token)
 # Login 成功後，server 不想每次都去查資料庫確認你是誰，所以發一張「通行證」給 client，之後每次 request帶著這張通行證，server 驗證它合法就直接信任。
 

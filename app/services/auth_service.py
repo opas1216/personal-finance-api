@@ -2,13 +2,16 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 import jwt
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordBearer
 from pwdlib import PasswordHash
 import os
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, Token
+from app.database import get_db
 
 password_hash = PasswordHash.recommended()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 def hash_password(password: str) -> str:
     """
@@ -31,6 +34,8 @@ def create_access_token(data: dict) -> str:
     """
     payload = data.copy()
     payload["exp"] = datetime.now(timezone.utc) + timedelta(hours=1)
+
+    # 在這指定演算法使用HS256
     return jwt.encode(payload, os.getenv("SECRET_KEY"), algorithm="HS256")
 
 
@@ -71,5 +76,32 @@ def login(db: Session, email: str, password: str) -> Token:
 
     token = create_access_token({"sub": str(user.id)})
 
+    # 指定token type為bearer，其餘的種類還有basic, mac等，這裡使用bearer是因為我們使用JWT token作為認證方式
     return Token(access_token=token, token_type="bearer")
+
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    try:
+        payload = jwt.decode(token, os.getenv('SECRET_KEY'), algorithms=["HS256"])
+        user_id = payload.get("sub")
+        if user_id is None:
+            # token 合法，但裡面沒有 sub，不是我們系統發行的
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    except jwt.ExpiredSignatureError:
+        # token expired，這是 jwt decode 時會丟出的錯誤，代表 token 已經過期了
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+
+    except jwt.InvalidTokenError:
+        # token 本身格式錯誤或簽名被竄改
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+    return user
+
+
+
 
