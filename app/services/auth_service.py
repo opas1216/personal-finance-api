@@ -66,14 +66,20 @@ def register(db: Session, data: UserCreate) -> User:
     return user
 
 def login(db: Session, email: str, password: str) -> Token:
+    # 先直接在DB裡面搜尋是否已有這個用戶存在，如果有存在才需要進一步去進行密碼驗證
     user = db.query(User).filter(User.email == email).first()
+
 
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email")
 
+    # verify password，這裡使用pwdlib的verify方法去驗證密碼是否正確，因為我們在註冊時已經將密碼進行hash過了，所以這裡需要將使用者輸入的密碼與資料庫裡的hash密碼進行比對
     if not verify_password(password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
 
+    # generate JWT Token，這裡使用JWT的sub欄位來存放user id，這樣在之後的驗證中就可以透過sub欄位來取得使用者的id，進而取得使用者的資訊
+    # 登入 → 把 user.id 存進 sub → 簽發 token
+    # 請求 → 解碼 token → 從 sub 取出 user_id → 查詢 user
     token = create_access_token({"sub": str(user.id)})
 
     # 指定token type為bearer，其餘的種類還有basic, mac等，這裡使用bearer是因為我們使用JWT token作為認證方式
@@ -83,7 +89,7 @@ def login(db: Session, email: str, password: str) -> Token:
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     try:
         payload = jwt.decode(token, os.getenv('SECRET_KEY'), algorithms=["HS256"])
-        user_id = payload.get("sub")
+        user_id = payload.get("sub") # ← 從 sub 取出 user id
         if user_id is None:
             # token 合法，但裡面沒有 sub，不是我們系統發行的
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")

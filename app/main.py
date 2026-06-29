@@ -1,13 +1,14 @@
 from fastapi import FastAPI
 from sqlalchemy import text
 from app.database import engine
-from app.routers import accounts, categories, auth
+from app.routers import accounts, categories, auth, transactions
 
 
 app = FastAPI()
 app.include_router(accounts.router)
 app.include_router(categories.router)
 app.include_router(auth.router)
+app.include_router(transactions.router)
 
 
 @app.get("/")
