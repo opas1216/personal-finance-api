@@ -6,6 +6,8 @@ from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
 from pwdlib import PasswordHash
 import os
+
+from app.exceptions import ConflictException
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, Token
 from app.database import get_db
@@ -47,7 +49,8 @@ def register(db: Session, data: UserCreate) -> User:
     # 1. Check if user already exists
     user = db.query(User).filter(User.email == data.email).first()
     if user:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        # raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        raise ConflictException("Email already registered")
 
     # 2. Hash the password
     hashed_password = hash_password(data.password)
@@ -71,11 +74,11 @@ def login(db: Session, email: str, password: str) -> Token:
 
 
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     # verify password，這裡使用pwdlib的verify方法去驗證密碼是否正確，因為我們在註冊時已經將密碼進行hash過了，所以這裡需要將使用者輸入的密碼與資料庫裡的hash密碼進行比對
     if not verify_password(password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     # generate JWT Token，這裡使用JWT的sub欄位來存放user id，這樣在之後的驗證中就可以透過sub欄位來取得使用者的id，進而取得使用者的資訊
     # 登入 → 把 user.id 存進 sub → 簽發 token

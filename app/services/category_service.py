@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
 from app.models.category import Category
 from app.schemas.category import CategoryCreate, CategoryUpdate
+from app.exceptions import NotFoundException
 
 
 def create_category(db: Session, data: CategoryCreate) -> Category:
@@ -20,7 +20,8 @@ def create_category(db: Session, data: CategoryCreate) -> Category:
 def get_category(db: Session, category_id: int) -> Category:
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        # raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        raise NotFoundException("Category not found")
     return category
 
 
