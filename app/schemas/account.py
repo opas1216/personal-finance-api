@@ -26,3 +26,35 @@ class AccountResponse(BaseModel):
     currency: str
 
     model_config = {"from_attributes": True}
+
+
+"""
+SQLAlchemy ORM 物件（Python 物件，有屬性）
+      ↓ from_attributes = True
+Pydantic schema 物件（Python 物件，有欄位）
+      ↓ Pydantic 序列化
+JSON（純文字，可以透過網路傳送）
+
+Schema 和 JSON 很像，但不是同一個東西：
+
+  ┌──────────┬───────────────────────┬───────────────────────┐
+  │          │  Schema（Pydantic）   │         JSON          │
+  ├──────────┼───────────────────────┼───────────────────────┤
+  │ 本質     │ Python 物件           │ 純文字字串            │
+  ├──────────┼───────────────────────┼───────────────────────┤
+  │ 有型別   │ ✅ Decimal, date, int │ ❌ 全部都是字串或數字 │
+  ├──────────┼───────────────────────┼───────────────────────┤
+  │ 可以傳輸 │ ❌                    │ ✅                    │
+  └──────────┴───────────────────────┴───────────────────────┘
+
+  例如：
+
+  # Pydantic schema 物件（還在 Python 裡）
+  TransactionResponse(id=1, amount=Decimal("150.00"), transaction_date=date(2026, 6, 30))
+
+  # 序列化成 JSON（變成可傳輸的純文字）
+  {"id": 1, "amount": "150.00", "transaction_date": "2026-06-30"}
+
+  Decimal 和 date 是 Python 型別，JSON 裡沒有這些，Pydantic 負責把它們轉成 JSON 認識的格式。
+
+"""

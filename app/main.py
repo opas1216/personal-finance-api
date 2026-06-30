@@ -3,7 +3,7 @@ from sqlalchemy import text
 from starlette.responses import JSONResponse
 
 from app.database import engine
-from app.routers import accounts, categories, auth, transactions
+from app.routers import accounts, categories, auth, transactions, reports
 from app.exceptions import NotFoundException, ForbiddenException, ConflictException, BadRequestException
 
 
@@ -31,6 +31,7 @@ app.include_router(accounts.router)
 app.include_router(categories.router)
 app.include_router(auth.router)
 app.include_router(transactions.router)
+app.include_router(reports.router)
 
 
 @app.get("/")
