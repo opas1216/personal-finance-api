@@ -24,6 +24,7 @@ env/
 .coverage.*
 coverage.xml
 htmlcov/
+test.db
 
 # Alembic
 alembic/versions/__pycache__/
