@@ -2,11 +2,12 @@ from sqlalchemy.orm import Session
 from app.models.category import Category
 from app.schemas.category import CategoryCreate, CategoryUpdate
 from app.exceptions import NotFoundException
+from app.services.auth_service import get_current_user
 
 
-def create_category(db: Session, data: CategoryCreate) -> Category:
+def create_category(db: Session, user_id: int, data: CategoryCreate) -> Category:
     # 1. 把 schema 轉成 model
-    category = Category(**data.model_dump())
+    category = Category(**data.model_dump(), user_id=user_id)
 
     # 2. db.add() → db.commit() → db.refresh()
     db.add(category)

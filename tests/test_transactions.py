@@ -1,7 +1,6 @@
 def test_create_transaction(client, auth_headers):
     # create account
     account = client.post("/accounts/", json={
-        "user_id": 1,
         "name": "測試帳戶",
         "type": "checking",
         "currency": "TWD"
@@ -25,7 +24,6 @@ def test_get_transactions(client, auth_headers):
 
 def test_create_transaction_invalid_amount(client, auth_headers):
     account = client.post("/accounts/", json={
-        "user_id": 1,
         "name": "測試帳戶",
         "type": "checking",
         "currency": "TWD"

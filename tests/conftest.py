@@ -51,6 +51,7 @@ def auth_headers(client):
         "password": "password123"
     })
     # 登入取得 JWT token
+    # respones是一個Token物件
     response = client.post("/auth/login", data={
         "username": "test@example.com",
         "password": "password123"

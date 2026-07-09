@@ -2,7 +2,8 @@ from pydantic import BaseModel
 
 # 定義建立時 client 要傳什麼欄位
 class AccountCreate(BaseModel):
-    user_id: int
+    # 因為已加入了JWT，所以不需要再自行填入user_id
+    # user_id: int
     name: str
     type: str
     currency: str
