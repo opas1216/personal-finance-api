@@ -21,7 +21,7 @@ def create(data: AccountCreate, current_user: User = Depends(get_current_user), 
 # Query parameter user_id is used to filter accounts by user_id
 # GET /accounts?user_id=1
 @router.get("/", response_model=list[AccountResponse])
-def get_all(user_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_all(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return account_service.get_accounts(db, current_user.id)
 
 
