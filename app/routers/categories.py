@@ -8,7 +8,7 @@ from app.services.auth_service import get_current_user
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
-@router.post("/", response_model=CategoryResponse)
+@router.post("/", response_model=CategoryResponse, status_code=201)
 def create(data: CategoryCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return category_service.create_category(db, current_user.id, data)
 

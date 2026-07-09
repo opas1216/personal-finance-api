@@ -1,10 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CategoryCreate(BaseModel):
     # introduce the JWT token to get the user_id from the token instead of passing it in the request body
     # user_id: int
-    name: str
+    name: str = Field(min_length=1)
     type: str
 
 class CategoryUpdate(BaseModel):
