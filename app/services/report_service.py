@@ -6,6 +6,7 @@ from app.models.category import Category
 from app.schemas.report import MonthlySummary, CategorySummary
 
 
+
 def get_monthly_summary(db: Session, user_id: int, year: int, month: int) -> MonthlySummary:
     def sum_by_type(transaction_type: str) -> Decimal:
         result = db.query(func.sum(Transaction.amount)).filter(
