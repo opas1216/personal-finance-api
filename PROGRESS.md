@@ -48,12 +48,20 @@ https://personal-finance-api-0tcv.onrender.com
 Week 12 (Portfolio Ready): README, ERD, Architecture Diagram, Interview
 Notes — not started.
 
-Optional CD refinement (not started, lower priority): Render auto-deploys
-on every push to `main` regardless of whether the `test` job in `ci.yml`
-passed — the two are currently independent. If a "only deploy if tests
-pass" gate is wanted, that needs either disabling Render auto-deploy and
-triggering its Deploy Hook from `ci.yml` after the `test` job succeeds, or
-an equivalent branch-protection-based approach.
+**Deferred until after Week 12 — CI/CD gate decision (already made, just not applied yet)**:
+Right now Render auto-deploys on every push to `main` regardless of whether
+the `test` job in `ci.yml` passed — the two are currently independent,
+because this project pushes straight to `main` with no PR step, so CI and
+CD both just react to the same `push` event in parallel instead of CD
+waiting on CI.
+
+Decided approach: switch this repo to a PR-based workflow going forward
+(feature branch → PR → require the `ci.yml` `test` job to pass via GitHub
+branch protection → merge → merge is what lands on `main` → Render deploys
+only what already passed CI). This is a config change only (GitHub branch
+protection rules + habit of using PRs), not an app-code change — deliberately
+postponed until Week 12 is done since the core project is otherwise
+finished and this only matters for *future* changes to the repo.
 
 ### Deployment gotchas learned this session (for future reference)
 
