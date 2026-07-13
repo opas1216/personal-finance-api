@@ -3,10 +3,63 @@
 Working notes for picking up in-flight work across machines. See ROADMAP.md for
 the overall plan — this file only tracks what's currently in progress.
 
-## Status as of 2026-07-13
+## Status as of 2026-07-13 (evening)
 
 Week 11 (CI/CD & Deployment) — **DONE**. Live at
 https://personal-finance-api-0tcv.onrender.com
+
+Week 12 (Portfolio Ready) — **in progress**: README + ERD + Architecture
+diagram done, Interview Notes still open (see "Next up").
+
+### Week 12 done so far
+
+- `README.md` rewritten from a stub into a portfolio-ready doc: live demo
+  link, CI badge, Features list, Tech Stack table with rationale for each
+  choice (FastAPI vs Flask/Django, Postgres vs MySQL/SQLite/Mongo, etc.),
+  Getting Started (both fully-containerized and hybrid
+  Docker-db-only/local-app workflows), API docs pointer, Project
+  Structure, Project Documents index.
+- **Architecture diagram**: Mermaid `flowchart` embedded in `README.md`
+  (Client -> Router -> Service -> Model -> Postgres, plus the exception ->
+  global handler -> HTTP status path). Replaces the old plain-text ASCII
+  version.
+- **ERD**: Mermaid `erDiagram` in `README.md`, sourced from a standalone
+  `erd.mmd` file (also committed, tracked in git as the raw source). User
+  wrote this one themselves after a long back-and-forth learning Mermaid's
+  crow's-foot cardinality syntax (`||`, `|o`/`o|`, `}o`/`o{`, `}|`/`|{` —
+  learned that the left-side and right-side forms of the same cardinality
+  are mirror images and NOT interchangeable, confirmed against Mermaid's
+  own docs; also learned the "outermost char = max, innermost char = min"
+  rule that explains why). Caught and fixed two real bugs in their own
+  draft before it was committed: `ACCOUNT` vs `ACCOUNTS` entity-name
+  mismatch (would have rendered as two disconnected entities), and
+  `created_at` typed as `string` instead of `datetime` (mismatched the
+  actual `Column(DateTime(timezone=True), ...)` in `app/models/user.py`).
+- **"What I Learned" section**: substantially expanded beyond the original
+  3 bullets — now covers Authentication vs Authorization (with the real
+  ownership-bug story), Testing & Pytest Fixtures (dependency graph
+  resolution, where assertions belong in a fixture vs a test, `assert`
+  message semantics, `Response` not being subscriptable, Decimal
+  comparison), SQLAlchemy/ORM internals (`Base.metadata` vs database
+  freshness, `engine` vs `Session`), API/HTTP design (how FastAPI infers
+  param source, auto-generated `/docs`), and CI/CD & Deployment (Docker
+  CMD exec vs shell form, module-level `create_engine`, what a webhook is,
+  why CI and CD aren't auto-chained without a PR gate). This mostly also
+  covers the ROADMAP's "Interview Notes" task — see below.
+- Also refactored `tests/test_transactions.py` while working through
+  fixture concepts for the README: extracted `create_account` /
+  `generate_transaction` fixtures (with assert-placement following the
+  precondition-vs-subject-under-test distinction learned this session),
+  strengthened `test_get_transactions` to actually verify the created
+  transaction appears in the response instead of just checking response
+  shape. Committed as `7959617` along with the README/ERD work.
+- Deployed a small custom HTML/SVG artifact (not part of the repo) as a
+  one-off visual ERD reference plus a guide to real ERD tools (Mermaid Live
+  Editor, dbdiagram.io, pgAdmin's ERD tool, draw.io) — recommended Mermaid
+  Live Editor (mermaid.live) as the companion preview tool since there's no
+  way to render Mermaid inside this dev environment itself
+  (`npx @mermaid-js/mermaid-cli` timed out trying to fetch a headless
+  browser).
 
 ### Done
 
@@ -45,8 +98,16 @@ https://personal-finance-api-0tcv.onrender.com
 
 ### Next up
 
-Week 12 (Portfolio Ready): README, ERD, Architecture Diagram, Interview
-Notes — not started.
+Week 12 (Portfolio Ready): README, ERD, and Architecture Diagram are done
+(see "Week 12 done so far" above). Only **Interview Notes** is still open —
+though the README's "What I Learned" section already covers most of the
+substance (concrete bugs found/fixed, concepts learned, with the "why").
+Next session: decide whether Interview Notes should be a separate document
+(e.g. `INTERVIEW_NOTES.md`) or whether "What I Learned" in the README is
+sufficient on its own — if a separate doc, it'd likely go deeper into
+question-and-answer format (anticipating "walk me through a design
+decision" style interview questions) rather than the README's narrative
+style.
 
 **Deferred until after Week 12 — CI/CD gate decision (already made, just not applied yet)**:
 Right now Render auto-deploys on every push to `main` regardless of whether
