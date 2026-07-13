@@ -1,0 +1,39 @@
+erDiagram
+    USERS ||--o{ ACCOUNTS: owns
+    USERS ||--o{ CATEGORIES: owns
+    USERS ||--o{ TRANSACTIONS : owns
+    ACCOUNTS ||--o{ TRANSACTIONS : "used in"
+    CATEGORIES |o--o{ TRANSACTIONS : categories
+
+    USERS {
+        int id PK
+        string email UK
+        string password_hash
+        datetime created_at
+    }
+
+    ACCOUNTS {
+        int id PK
+        int user_id FK
+        string name
+        string type
+        string currency
+    }
+
+    CATEGORIES {
+        int id PK
+        int user_id FK
+        string name
+        string type
+    }
+
+    TRANSACTIONS {
+        int id PK
+        int user_id FK
+        int account_id FK
+        int category_id FK "nullable"
+        numeric amount "Numeric(10, 2)"
+        string transaction_type
+        date transaction_date
+        string description "nullable"
+    }
