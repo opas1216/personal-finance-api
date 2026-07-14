@@ -107,26 +107,54 @@ reflection questions) are all committed and pushed
 complete.** The remaining deferred CI/CD gate decision is still open (see
 below). Beyond that, the project has moved on to `TIER1_EXPANSION_PLAN.md`
 (see next section) — a self-authored follow-on plan to deepen this project
-for backend interview prep (recurring transactions, idempotency, scheduler,
-budgets/alerts, testing, observability), added 2026-07-15.
+for backend interview prep (transfers, recurring transactions, idempotency,
+scheduler, budgets/alerts, testing, observability), added 2026-07-15.
 
-### Tier 1 Expansion — Phase 0 done (2026-07-15, commit `1b532c7`)
+### Tier 1 Expansion — Phase 0 done, plan upgraded to v3 (2026-07-15)
 
-- `TIER1_EXPANSION_PLAN.md` (repo root) and `docs/current-architecture.md`
-  added. Plan deliberately does not add new tech for its own sake — it
-  deepens one flow (recurring transaction -> scheduler -> idempotency ->
-  budget alert) to demonstrate DB transactions, idempotency, background jobs,
-  failure handling, observability. 8 phases, each with a "Stop Point" gate;
-  explicit "what not to add" list (no Kafka/K8s/microservices/CQRS/event
-  sourcing), consistent with this repo's `CLAUDE.md` Forbidden list.
-- Phase 0 audit confirmed baseline is healthy: 25/25 tests pass locally,
-  latest CI run green, layering clean (routers/services/models), secrets via
-  `os.getenv()` only, live deploy's `/health` and `/docs` both 200. Full
-  detail in `docs/current-architecture.md`, including a "known technical
-  debt" list (no PR-based CI gate yet, `/` missing `HEAD`, shell-form
-  Dockerfile `CMD` PID1 concern, single Alembic migration so far).
-- Next: Phase 1 — `recurring_transactions` model + CRUD (domain model and
-  business rules, no scheduler/idempotency yet — those are Phase 2/3).
+- `docs/current-architecture.md` added (commit `1b532c7`). Phase 0 audit
+  confirmed baseline is healthy: 25/25 tests pass locally, latest CI run
+  green, layering clean (routers/services/models), secrets via
+  `os.getenv()` only, live deploy's `/health` and `/docs` both 200. Known
+  technical debt logged: no PR-based CI gate yet, `/` missing `HEAD`,
+  shell-form Dockerfile `CMD` PID1 concern, single Alembic migration so far.
+- `TIER1_EXPANSION_PLAN.md` was replaced with a v3 revision the user brought
+  in (commit `efb4245`), which adds a `transfers` domain, a month-end
+  next-run-date rule, `retry_count` on execution runs, and a dedicated
+  `budget_alert_events` table (with its own `UNIQUE(budget_id, threshold,
+  year, month)`) for alert dedup — the last two directly fix gaps flagged
+  during the Phase 0 review.
+- **Design decisions locked in (annotated at the top of
+  `TIER1_EXPANSION_PLAN.md`, which override the v3 body text below them):**
+  - **Category stays a pure label** — v3's proposal to add
+    `Category.usage_type` (income/expense/both) plus a
+    transaction/category compatibility validation was considered and
+    **rejected**. The user independently spotted the same flaw flagged in
+    the Phase 0 review: a category like "Stock" can't have one fixed
+    direction (buying is an expense, selling/dividend is income). Of the
+    three options discussed (fully unbound / optional-bind / strict-bind),
+    fully unbound won — `Transaction.transaction_type` alone carries
+    direction; `Category` never validates it. All v3 tasks referencing
+    `usage_type` or category/transaction compatibility are struck out in
+    the repo's plan file.
+  - **Transfers adopted** as the Phase 1 warm-up (a dedicated `transfers`
+    model/service/API, atomic DB transaction, excluded from income/expense
+    reports) — simpler DB-transaction/rollback practice before the harder
+    idempotency work in Phase 3.
+  - **Scheduler technology (Phase 4) still undecided on purpose** — revisit
+    once Phase 2 (recurring transactions) and Phase 3 (idempotency) exist.
+    Render's Free web service spins down when idle, so a naive in-process
+    APScheduler isn't guaranteed to fire on schedule; candidates discussed:
+    in-process + catch-up-on-wake, a separate Render Cron Job, or a GitHub
+    Actions scheduled workflow hitting a protected endpoint.
+  - **Currency handling still an open gap** — `accounts.currency` is a free
+    string with no single-currency-per-user enforcement, and the existing
+    `report_service.py` already sums `Transaction.amount` across accounts
+    with zero currency conversion (a pre-existing latent bug, not something
+    Tier 1 introduced). Must be decided before Phase 5 (Budget), since
+    budget limits compare directly against summed transaction amounts.
+- **Next: Phase 1 (Transfers)** — `transfers` model + service + API, atomic
+  DB transaction, rollback tests, excluded from reports.
 
 **Personal note (not project-scoped)**: the user also keeps a personal
 interview-prep Q&A collection at `C:\Projects\INTERVIEW_Q&A.md` (outside
