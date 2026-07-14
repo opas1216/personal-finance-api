@@ -3,13 +3,18 @@
 Working notes for picking up in-flight work across machines. See ROADMAP.md for
 the overall plan — this file only tracks what's currently in progress.
 
-## Status as of 2026-07-13 (evening)
+## Status as of 2026-07-14
 
-Week 11 (CI/CD & Deployment) — **DONE**. Live at
+**Project complete — all 12 weeks of `ROADMAP.md` are done.** Live at
 https://personal-finance-api-0tcv.onrender.com
 
-Week 12 (Portfolio Ready) — **in progress**: README + ERD + Architecture
-diagram done, Interview Notes still open (see "Next up").
+Week 11 (CI/CD & Deployment) — DONE.
+Week 12 (Portfolio Ready) — DONE: README (with live demo link, CI badge,
+tech stack rationale, Architecture + ERD Mermaid diagrams, Getting
+Started, expanded "What I Learned"), `erd.mmd`, and `INTERVIEW_NOTES.md`
+(narrative Q&A on this project's design decisions, bugs found/fixed, and
+reflection questions) are all committed and pushed
+(`7959617`, `0fd364b`, `4b0251e`).
 
 ### Week 12 done so far
 
@@ -98,18 +103,22 @@ diagram done, Interview Notes still open (see "Next up").
 
 ### Next up
 
-Week 12 (Portfolio Ready): README, ERD, and Architecture Diagram are done
-(see "Week 12 done so far" above). Only **Interview Notes** is still open —
-though the README's "What I Learned" section already covers most of the
-substance (concrete bugs found/fixed, concepts learned, with the "why").
-Next session: decide whether Interview Notes should be a separate document
-(e.g. `INTERVIEW_NOTES.md`) or whether "What I Learned" in the README is
-sufficient on its own — if a separate doc, it'd likely go deeper into
-question-and-answer format (anticipating "walk me through a design
-decision" style interview questions) rather than the README's narrative
-style.
+**All 12 weeks of `ROADMAP.md` are done — this project's build plan is
+complete.** The only remaining open item is the deferred CI/CD gate
+decision below (was explicitly postponed until after Week 12, which is
+now finished).
 
-**Deferred until after Week 12 — CI/CD gate decision (already made, just not applied yet)**:
+**Personal note (not project-scoped)**: the user also keeps a personal
+interview-prep Q&A collection at `C:\Projects\INTERVIEW_Q&A.md` (outside
+this repo, not git-tracked) — that file, not this one, is where
+new general engineering Q&A from conversations gets appended going
+forward.
+
+**Next project**: nothing scoped yet. If starting a new project next, it
+won't be tracked in this repo's `PROGRESS.md`/`ROADMAP.md` — those are
+specific to `personal-finance-api`.
+
+**Deferred — CI/CD gate decision (already decided, just not applied yet)**:
 Right now Render auto-deploys on every push to `main` regardless of whether
 the `test` job in `ci.yml` passed — the two are currently independent,
 because this project pushes straight to `main` with no PR step, so CI and
