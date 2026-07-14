@@ -1,6 +1,6 @@
 # Tier 1 Expansion Plan v3 — Personal Finance API
 
-> **Project-specific overrides (decided 2026-07-15, superseding v3 where noted below):**
+> **Project-specific overrides (decided 2026-07-15/16, superseding v3 where noted below):**
 >
 > - **Category direction ("usage_type")**: NOT adopted. `Category` stays a pure
 >   label (name only) with no income/expense/both field and no compatibility
@@ -15,19 +15,42 @@
 >   document that references `usage_type` or category/transaction
 >   compatibility validation does not apply to this project.
 > - **Transfers**: adopted as-is, taken on as a Phase 1 warm-up before the
->   recurring-transaction work.
+>   recurring-transaction work — sequenced *after* the currency foundation
+>   below, since cross-currency transfers depend on it.
 > - **Scheduler technology choice (Phase 4)**: intentionally not decided yet.
 >   Revisit once Phase 2 (recurring transactions) and Phase 3 (idempotency)
 >   exist and the need is concrete. Known constraint to weigh then: Render's
 >   Free web service spins down when idle, so a naive in-process APScheduler
 >   is not guaranteed to fire on schedule.
-> - **Currency handling**: still an open gap not addressed anywhere in this
->   plan. Existing `accounts.currency` is a free string with no enforced
->   single-currency-per-user rule, and existing reports already sum
->   `Transaction.amount` across accounts without currency conversion. Must be
->   explicitly decided (assume single currency vs. real conversion) before
->   Phase 5 (Budget) work begins, since budget limits are compared directly
->   against summed transaction amounts.
+> - **Currency handling — DECIDED (2026-07-15/16): full multi-currency with
+>   real conversion.** Design:
+>   - Add `users.base_currency` — every user has one home/reporting currency.
+>   - Add an `exchange_rates` table (`base_currency`, `target_currency`,
+>     `rate`, `as_of_date`). Populated lazily from the free, key-less
+>     **Frankfurter API** (`api.frankfurter.dev`, ECB daily rates) the first
+>     time a given date's rate is needed, then cached — no scheduled daily
+>     refresh job, no manual rate-override UI.
+>   - Every `Transaction`/`Transfer` **snapshots** the rate (or the resulting
+>     base-currency amount) used at creation time. Reports must never
+>     re-price historical transactions with today's rate — a January report
+>     must not change value just because March's exchange rate moved. This
+>     is the single most important rule here.
+>   - `report_service.py`'s `get_monthly_summary`/`get_category_summary` must
+>     sum the *snapshotted base-currency amount*, not raw `Transaction.amount`.
+>   - Cross-currency transfers (Phase 1) convert via the same snapshot-rate
+>     mechanism — record both the source-currency amount and the
+>     destination-currency amount (not just one amount + an implied rate).
+>   - `accounts.currency` should be validated against ISO 4217 codes (a
+>     Pydantic-level check, not a new lookup table) so it's guaranteed
+>     compatible with the Frankfurter API.
+>   - Out of scope: backfilling currency data for transactions/accounts that
+>     predate this feature (existing test/prod data stays as-is, treated as
+>     already in the user's base currency). No live daily rate refresh job.
+>     No manual rate-override UI.
+>   - Sequencing: build this **before** Transfers, since cross-currency
+>     transfers need it. Phase 1 execution order for this project is now:
+>     (1a) currency foundation, (1b) update `report_service.py` to use
+>     snapshotted amounts, (1c) Transfers.
 >
 > See `docs/current-architecture.md` and `PROGRESS.md` for the audit this
 > plan builds on.
@@ -171,8 +194,28 @@ Separate transaction direction from category applicability.
 - [ ] ~~Add enum/database validation~~ — not adopted
 - [ ] ~~Add compatibility validation~~ — not adopted
 - [ ] ~~Migrate existing category data~~ — not adopted
-- [ ] Update monthly/category reports (only if `transfers` need excluding — see below)
+- [ ] Update monthly/category reports (to exclude transfers, and to sum
+  snapshotted base-currency amounts — see currency override note)
 - [ ] Add tests for valid/invalid combinations (ownership only, no direction compatibility)
+
+## Phase 1a — Currency Foundation (new, precedes Transfers)
+
+See the currency override note at the top of this document for the full
+design. Summary of tasks:
+
+- [ ] Add `users.base_currency`
+- [ ] Add `exchange_rates` model/migration (`base_currency`,
+  `target_currency`, `rate`, `as_of_date`)
+- [ ] Add an exchange-rate service that fetches from Frankfurter and caches
+  by date (no rate for a given date is fetched twice)
+- [ ] Validate `accounts.currency` against ISO 4217 codes
+- [ ] Snapshot the resolved rate/base-currency amount on `Transaction`
+  creation
+- [ ] Update `report_service.py` to sum snapshotted base-currency amounts
+  instead of raw `Transaction.amount`
+- [ ] Add tests: same-currency transaction (rate = 1, sanity check),
+  cross-currency transaction, a report that doesn't change when a later
+  transaction changes today's cached rate
 
 ## Transfer Design
 
@@ -186,11 +229,17 @@ transfers
 - user_id
 - source_account_id
 - destination_account_id
-- amount
+- source_amount
+- destination_amount
 - transfer_date
 - description
 - created_at
 ```
+
+(`source_amount`/`destination_amount` replaces v3's single `amount` field —
+needed once accounts can be in different currencies; see currency override
+note. If both accounts share a currency, `source_amount == destination_amount`
+and no conversion happens.)
 
 Tasks:
 
@@ -200,6 +249,8 @@ Tasks:
 - [ ] Make transfer atomic with DB transaction
 - [ ] Exclude transfers from income/expense reports
 - [ ] Add rollback tests
+- [ ] Add cross-currency transfer test (uses the Phase 1a exchange-rate
+  service)
 
 ## Stop Point 1
 
@@ -209,8 +260,12 @@ Proceed only when:
   label, any transaction_type is allowed on it)
 - ~~Strict categories reject invalid directions~~ (not applicable — no
   direction validation adopted)
+- Reports sum snapshotted base-currency amounts, and a stored historical
+  transaction's contribution to a report does not change when the cached
+  exchange rate for a later date changes
 - Transfers are atomic
 - Transfers do not pollute reports
+- Cross-currency transfers convert correctly
 - Existing reports still pass
 
 ---
@@ -377,9 +432,9 @@ Proceed only when:
 
 # Phase 5 — Budget and Alert Integration
 
-> Note: decide the currency-handling approach (see override note at top)
-> before starting this phase — budget limits are compared directly against
-> summed transaction amounts.
+> Currency handling is decided (see override note at top) — budgets are
+> expressed in the user's `base_currency`, and budget usage sums the same
+> snapshotted base-currency amounts used in reports (Phase 1a).
 
 ## Budget Rules
 
@@ -479,10 +534,12 @@ Required tests:
 - Budget usage
 - Threshold crossing
 - Retry decisions
+- Currency conversion / rate snapshotting
 
 ## Integration
 
 - Transfer creation/rollback
+- Cross-currency transfer
 - Recurring transaction creation
 - Scheduled execution
 - Idempotency
@@ -501,6 +558,7 @@ Required tests:
 - Invalid recurring date
 - Duplicate alert
 - Transfer to same account
+- Exchange rate API unavailable
 
 Recommended meaningful coverage:
 
@@ -537,6 +595,7 @@ Required logs:
 - Duplicate execution prevented
 - Budget alert created
 - Unexpected errors
+- Exchange rate fetch failure
 
 Do not log passwords, JWTs, secrets, or full sensitive financial payloads.
 
@@ -568,6 +627,7 @@ Required documentation:
 docs/architecture.md
 docs/data-model.md
 docs/category-and-transaction-design.md
+docs/currency-and-exchange-rates.md
 docs/transfer-flow.md
 docs/recurring-transaction-flow.md
 docs/idempotency.md
@@ -583,6 +643,7 @@ Prepare to explain:
   project deliberately chose no category/transaction direction binding at all
 - Why transfers are separate
 - Why Stock is bidirectional
+- Why exchange rates are snapshotted per-transaction instead of computed live
 - Idempotency
 - DB transactions/rollback
 - Unique constraints
@@ -598,6 +659,7 @@ Freeze Tier 1 when:
 
 - ~~Categories support income/expense/both~~ — replaced by: categories are
   unrestricted labels; direction lives on transactions only
+- Multi-currency accounts/transactions/transfers convert and report correctly
 - Transfers are atomic and excluded from reports
 - Recurring transactions run automatically
 - Duplicate execution is prevented
@@ -626,20 +688,21 @@ Freeze Tier 1
 1. (skipped — no category usage_type adopted)
 2. (skipped — no category usage_type adopted)
 3. (skipped — no category data migration needed)
-4. Update reports only as needed to exclude transfers
-5. Add dedicated transfer model/service
-6. Add transfer tests
-7. Add recurring transaction model
-8. Add next-run calculation
-9. Add recurring CRUD
-10. Add recurring execution record
-11. Add DB unique constraint
-12. Add idempotent execution service
-13. Add rollback tests
-14. Add scheduler (technology TBD — see override note)
-15. Add retry/restart safety
-16. Decide currency-handling approach (see override note)
-17. Add budget usage calculation
+4. Add currency foundation: users.base_currency, exchange_rates model,
+   exchange-rate service (Frankfurter, cached by date)
+5. Update report_service.py to sum snapshotted base-currency amounts
+6. Add dedicated transfer model/service (source_amount/destination_amount)
+7. Add transfer tests (including cross-currency)
+8. Add recurring transaction model
+9. Add next-run calculation
+10. Add recurring CRUD
+11. Add recurring execution record
+12. Add DB unique constraint
+13. Add idempotent execution service
+14. Add rollback tests
+15. Add scheduler (technology TBD — see override note)
+16. Add retry/restart safety
+17. Add budget usage calculation (base-currency amounts)
 18. Add notification/alert-event models
 19. Add duplicate-alert prevention
 20. Connect manual/recurring expenses
@@ -672,6 +735,8 @@ Do not add yet:
 - Microservices
 - CQRS
 - Event sourcing
+- Live/scheduled exchange-rate refresh jobs
+- Manual exchange-rate override UI
 
 Stock remains a cash-flow category in Tier 1.
 

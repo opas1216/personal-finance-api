@@ -137,7 +137,7 @@ scheduler, budgets/alerts, testing, observability), added 2026-07-15.
     direction; `Category` never validates it. All v3 tasks referencing
     `usage_type` or category/transaction compatibility are struck out in
     the repo's plan file.
-  - **Transfers adopted** as the Phase 1 warm-up (a dedicated `transfers`
+  - **Transfers adopted** as a Phase 1 warm-up (a dedicated `transfers`
     model/service/API, atomic DB transaction, excluded from income/expense
     reports) — simpler DB-transaction/rollback practice before the harder
     idempotency work in Phase 3.
@@ -147,14 +147,28 @@ scheduler, budgets/alerts, testing, observability), added 2026-07-15.
     APScheduler isn't guaranteed to fire on schedule; candidates discussed:
     in-process + catch-up-on-wake, a separate Render Cron Job, or a GitHub
     Actions scheduled workflow hitting a protected endpoint.
-  - **Currency handling still an open gap** — `accounts.currency` is a free
-    string with no single-currency-per-user enforcement, and the existing
-    `report_service.py` already sums `Transaction.amount` across accounts
-    with zero currency conversion (a pre-existing latent bug, not something
-    Tier 1 introduced). Must be decided before Phase 5 (Budget), since
-    budget limits compare directly against summed transaction amounts.
-- **Next: Phase 1 (Transfers)** — `transfers` model + service + API, atomic
-  DB transaction, rollback tests, excluded from reports.
+  - **Currency handling — DECIDED (2026-07-15/16): full multi-currency with
+    real conversion.** `users.base_currency` (home/reporting currency) +
+    new `exchange_rates` table (`base_currency`, `target_currency`, `rate`,
+    `as_of_date`), populated lazily from the free key-less **Frankfurter
+    API** (`api.frankfurter.dev`, ECB daily rates) the first time a date's
+    rate is needed, then cached. Every `Transaction`/`Transfer` **snapshots**
+    the rate/base-currency amount used at creation time — reports must never
+    re-price historical transactions with today's rate (a January report
+    can't change value because March's rate moved). `report_service.py`
+    must sum the snapshotted base-currency amount, not raw
+    `Transaction.amount`. `accounts.currency` gets validated against ISO
+    4217. Explicitly out of scope: scheduled daily rate-refresh jobs,
+    manual rate-override UI, backfilling currency data for
+    pre-existing transactions. Full detail annotated in
+    `TIER1_EXPANSION_PLAN.md`'s override note.
+- **Next: Phase 1a (Currency Foundation), then Phase 1c (Transfers)** —
+  build the currency/exchange-rate foundation and update `report_service.py`
+  to use snapshotted base-currency amounts first, since cross-currency
+  transfers depend on it; then `transfers` model + service + API (now with
+  `source_amount`/`destination_amount` instead of a single `amount`, to
+  support cross-currency transfers), atomic DB transaction, rollback tests,
+  excluded from reports.
 
 **Personal note (not project-scoped)**: the user also keeps a personal
 interview-prep Q&A collection at `C:\Projects\INTERVIEW_Q&A.md` (outside
