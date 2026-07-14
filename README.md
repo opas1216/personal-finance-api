@@ -330,4 +330,5 @@ tests/           # pytest suite
 - [PROJECT_SCOPE.md](PROJECT_SCOPE.md) — MVP feature scope and DB schema
 - [ROADMAP.md](ROADMAP.md) — the 12-week build plan
 - [PROGRESS.md](PROGRESS.md) — detailed build notes and gotchas learned along the way
+- [INTERVIEW_NOTES.md](INTERVIEW_NOTES.md) — practice Q&A on this project's design decisions and bugs
 - [CLAUDE.md](CLAUDE.md) — architecture rules and development conventions
