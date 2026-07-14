@@ -104,19 +104,35 @@ reflection questions) are all committed and pushed
 ### Next up
 
 **All 12 weeks of `ROADMAP.md` are done — this project's build plan is
-complete.** The only remaining open item is the deferred CI/CD gate
-decision below (was explicitly postponed until after Week 12, which is
-now finished).
+complete.** The remaining deferred CI/CD gate decision is still open (see
+below). Beyond that, the project has moved on to `TIER1_EXPANSION_PLAN.md`
+(see next section) — a self-authored follow-on plan to deepen this project
+for backend interview prep (recurring transactions, idempotency, scheduler,
+budgets/alerts, testing, observability), added 2026-07-15.
+
+### Tier 1 Expansion — Phase 0 done (2026-07-15, commit `1b532c7`)
+
+- `TIER1_EXPANSION_PLAN.md` (repo root) and `docs/current-architecture.md`
+  added. Plan deliberately does not add new tech for its own sake — it
+  deepens one flow (recurring transaction -> scheduler -> idempotency ->
+  budget alert) to demonstrate DB transactions, idempotency, background jobs,
+  failure handling, observability. 8 phases, each with a "Stop Point" gate;
+  explicit "what not to add" list (no Kafka/K8s/microservices/CQRS/event
+  sourcing), consistent with this repo's `CLAUDE.md` Forbidden list.
+- Phase 0 audit confirmed baseline is healthy: 25/25 tests pass locally,
+  latest CI run green, layering clean (routers/services/models), secrets via
+  `os.getenv()` only, live deploy's `/health` and `/docs` both 200. Full
+  detail in `docs/current-architecture.md`, including a "known technical
+  debt" list (no PR-based CI gate yet, `/` missing `HEAD`, shell-form
+  Dockerfile `CMD` PID1 concern, single Alembic migration so far).
+- Next: Phase 1 — `recurring_transactions` model + CRUD (domain model and
+  business rules, no scheduler/idempotency yet — those are Phase 2/3).
 
 **Personal note (not project-scoped)**: the user also keeps a personal
 interview-prep Q&A collection at `C:\Projects\INTERVIEW_Q&A.md` (outside
 this repo, not git-tracked) — that file, not this one, is where
 new general engineering Q&A from conversations gets appended going
 forward.
-
-**Next project**: nothing scoped yet. If starting a new project next, it
-won't be tracked in this repo's `PROGRESS.md`/`ROADMAP.md` — those are
-specific to `personal-finance-api`.
 
 **Deferred — CI/CD gate decision (already decided, just not applied yet)**:
 Right now Render auto-deploys on every push to `main` regardless of whether
