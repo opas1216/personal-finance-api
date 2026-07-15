@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import os
 from app.database import Base
-from app.models import user, account, category, transaction
+from app.models import user, account, category, transaction, exchange_rate
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
