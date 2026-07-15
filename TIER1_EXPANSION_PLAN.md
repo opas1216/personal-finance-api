@@ -51,9 +51,23 @@
 >   - Add `users.base_currency` — every user has one home/reporting currency.
 >   - Add an `exchange_rates` table (`base_currency`, `target_currency`,
 >     `rate`, `as_of_date`). Populated lazily from the free, key-less
->     **Frankfurter API** (`api.frankfurter.dev`, ECB daily rates) the first
->     time a given date's rate is needed, then cached — no scheduled daily
->     refresh job, no manual rate-override UI.
+>     **Frankfurter API v2** (`api.frankfurter.dev/v2`) the first time a
+>     given date's rate is needed, then cached — no scheduled daily refresh
+>     job, no manual rate-override UI.
+>     - **Must use `/v2/rates`, not `/v1/rates`** — verified empirically
+>       2026-07-16: `v1` only serves ~30 ECB-published currencies and does
+>       **not** include TWD (`{"message":"not found"}` for any TWD query);
+>       `v2` serves 165 currently-active currencies and does include TWD
+>       (confirmed via `v2/rates?base=TWD&quotes=USD` and
+>       `v2/currencies`). This matters directly since this project's own
+>       test data and the user's real-world use case both use TWD.
+>     - Confirmed `v2` request/response shape: `GET /v2/rates?date=YYYY-MM-DD&base=XXX&quotes=YYY,ZZZ`
+>       (param is `quotes`, not `v1`'s `symbols`; omit `date` for latest) →
+>       JSON **array** of `{"date", "base", "quote", "rate"}` objects, one
+>       per requested quote currency.
+>     - Confirmed `v2/currencies` shape: array of
+>       `{"iso_code", "iso_numeric", "name", "symbol", "start_date", "end_date"}`
+>       objects (different shape from `v1`'s flat `{code: name}` dict).
 >   - Every `Transaction`/`Transfer` **snapshots** the rate (or the resulting
 >     base-currency amount) used at creation time. Reports must never
 >     re-price historical transactions with today's rate — a January report
@@ -64,9 +78,13 @@
 >   - Cross-currency transfers (Phase 1) convert via the same snapshot-rate
 >     mechanism — record both the source-currency amount and the
 >     destination-currency amount (not just one amount + an implied rate).
->   - `accounts.currency` should be validated against ISO 4217 codes (a
->     Pydantic-level check, not a new lookup table) so it's guaranteed
->     compatible with the Frankfurter API.
+>   - `accounts.currency` should be validated against Frankfurter `v2`'s own
+>     165-currency list (fetched/cached from `v2/currencies`, not a
+>     hand-maintained ISO 4217 list) — this is strictly more correct than
+>     validating against generic ISO 4217, since ISO 4217 has ~180 codes but
+>     does not guarantee Frankfurter actually has rate data for all of them;
+>     validating against Frankfurter's own list guarantees compatibility by
+>     construction.
 >   - Out of scope: backfilling currency data for transactions/accounts that
 >     predate this feature (existing test/prod data stays as-is, treated as
 >     already in the user's base currency). No live daily rate refresh job.
@@ -230,8 +248,9 @@ design. Summary of tasks:
 - [ ] Add `users.base_currency`
 - [ ] Add `exchange_rates` model/migration (`base_currency`,
   `target_currency`, `rate`, `as_of_date`)
-- [ ] Add an exchange-rate service that fetches from Frankfurter and caches
-  by date (no rate for a given date is fetched twice)
+- [ ] Add an exchange-rate service that fetches from Frankfurter **v2**
+  (see override note — `v1` doesn't have TWD) and caches by date (no rate
+  for a given date is fetched twice)
 - [ ] Validate `accounts.currency` against ISO 4217 codes
 - [ ] Snapshot the resolved rate/base-currency amount on `Transaction`
   creation
