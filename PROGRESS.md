@@ -259,6 +259,29 @@ scheduler, budgets/alerts, testing, observability), added 2026-07-15.
   `date=YYYY-MM-DD` (tested directly), so backfilled transactions are not
   a gap — the historical rate for that exact date is always fetchable on
   first use, regardless of how long ago it was.
+- **Known limitation, deliberately out of Tier 1 scope: changing
+  `users.base_currency` after transactions already exist.** Each
+  `Transaction`'s snapshot (`exchange_rate_to_base` /
+  `base_currency_amount`) implicitly assumes "converted using whatever
+  `base_currency` was active at creation time." If a user's
+  `base_currency` were ever changed afterward, old transactions' snapshots
+  would still be in the *old* base currency while new transactions snapshot
+  in the *new* one — `report_service.py` naively summing
+  `base_currency_amount` across both would silently add together two
+  different currencies as if they were the same unit (e.g. summing USD
+  amounts and TWD amounts as one number). There is no clean fix that
+  preserves "reports never need re-pricing": either reports show a
+  currency discontinuity at the change point, or every existing
+  transaction needs to be re-snapshotted (re-fetch the historical rate for
+  each transaction's own `transaction_date`, old-currency → new
+  `base_currency`, using the already-planned `exchange_rate_service`,
+  which already supports arbitrary historical dates) — a bulk
+  operation, not something to solve implicitly on the fly at report time.
+  **Deliberately out of scope for Tier 1** because there is currently no
+  endpoint/feature that lets a user change `base_currency` after
+  registration at all — the field is only set once, at signup. Revisit
+  (implementing the bulk re-snapshot approach above) if/when a
+  "change base currency" feature is ever built, likely Tier 2+.
 - **Still not done**: the exchange-rate service itself (get_rate function
   with caching + Frankfurter v2 call + the batch-fetch-on-miss + race
   handling above), currency validation against Frankfurter's
