@@ -141,12 +141,23 @@ scheduler, budgets/alerts, testing, observability), added 2026-07-15.
     model/service/API, atomic DB transaction, excluded from income/expense
     reports) — simpler DB-transaction/rollback practice before the harder
     idempotency work in Phase 3.
-  - **Scheduler technology (Phase 4) still undecided on purpose** — revisit
-    once Phase 2 (recurring transactions) and Phase 3 (idempotency) exist.
-    Render's Free web service spins down when idle, so a naive in-process
-    APScheduler isn't guaranteed to fire on schedule; candidates discussed:
-    in-process + catch-up-on-wake, a separate Render Cron Job, or a GitHub
-    Actions scheduled workflow hitting a protected endpoint.
+  - **Scheduler technology (Phase 4) — DECIDED (2026-07-16, ahead of
+    schedule): GitHub Actions scheduled workflow calling a protected API
+    endpoint.** In-process APScheduler rejected (dies when Render's Free
+    Web Service spins down idle — it's the same process). Render Cron Job
+    rejected (verified via Render's own docs: minimum $1/mo per cron job,
+    breaks the free-tier-only constraint this project has kept throughout).
+    Celery+Redis out of scope at this project's scale. GitHub Actions wins:
+    free, reuses `.github/workflows/` infra already in place, and — being
+    entirely external to Render — its HTTP call is exactly what wakes a
+    sleeping Web Service. Caveats to design around when Phase 4 is actually
+    built: 5-minute minimum interval, possible delay during high GitHub
+    Actions load (documented, notably near the top of each hour), and
+    auto-disabled after 60 days of zero repo activity since this repo is
+    public. None block daily/weekly/monthly-granularity recurring
+    transactions; the delay risk is exactly what Phase 3's idempotent
+    execution design needs to already tolerate. Full reasoning in
+    `TIER1_EXPANSION_PLAN.md`'s override note.
   - **Currency handling — DECIDED (2026-07-15/16): full multi-currency with
     real conversion.** `users.base_currency` (home/reporting currency) +
     new `exchange_rates` table (`base_currency`, `target_currency`, `rate`,

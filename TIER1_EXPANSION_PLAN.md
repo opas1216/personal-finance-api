@@ -17,11 +17,35 @@
 > - **Transfers**: adopted as-is, taken on as a Phase 1 warm-up before the
 >   recurring-transaction work — sequenced *after* the currency foundation
 >   below, since cross-currency transfers depend on it.
-> - **Scheduler technology choice (Phase 4)**: intentionally not decided yet.
->   Revisit once Phase 2 (recurring transactions) and Phase 3 (idempotency)
->   exist and the need is concrete. Known constraint to weigh then: Render's
->   Free web service spins down when idle, so a naive in-process APScheduler
->   is not guaranteed to fire on schedule.
+> - **Scheduler technology (Phase 4) — DECIDED (2026-07-16, ahead of schedule):
+>   GitHub Actions scheduled workflow (`on: schedule`) calling a protected
+>   API endpoint.** Rejected alternatives, with reasons:
+>   - *In-process APScheduler*: rejected as the sole mechanism — Render's
+>     Free Web Service spins down when idle, and an in-process scheduler is
+>     part of that same process, so it stops ticking whenever the app is
+>     asleep. A "catch-up on wake" variant only runs opportunistically
+>     (whenever some other request happens to wake the process), with no
+>     guaranteed timing.
+>   - *Render Cron Job*: verified against Render's own docs — minimum $1/mo
+>     per cron job service, breaking this project's free-tier-only
+>     constraint. Valid fallback if budget stops being a concern, but not
+>     the default.
+>   - *Celery + Redis*: explicitly out of scope per this document's own
+>     guidance ("only add for a deliberate distributed-worker learning
+>     goal") — not needed at this project's scale.
+>   Why GitHub Actions wins: free, reuses infrastructure already in place
+>   (`.github/workflows/ci.yml`), and — since it lives entirely outside
+>   Render — the HTTP call it makes is exactly what wakes a sleeping Render
+>   Web Service, sidestepping the idle-spin-down problem without paying for
+>   a dedicated Cron Job. Known caveats to design around when Phase 4 is
+>   actually implemented: GitHub's `schedule` trigger has a 5-minute minimum
+>   interval, can be delayed during periods of high GitHub Actions load
+>   (documented, notably around the top of each hour), and — since this repo
+>   is public — is auto-disabled after 60 days with zero repository activity
+>   (needs manual re-enabling). None of these are blockers for
+>   daily/weekly/monthly-granularity recurring transactions, but the delay
+>   risk is exactly the kind of thing the Phase 3 idempotent-execution design
+>   needs to already tolerate.
 > - **Currency handling — DECIDED (2026-07-15/16): full multi-currency with
 >   real conversion.** Design:
 >   - Add `users.base_currency` — every user has one home/reporting currency.
@@ -388,23 +412,10 @@ Proceed only when:
 
 # Phase 4 — Scheduler and Background Processing
 
-Recommended first technology:
-
-```text
-APScheduler
-```
-
-Optional later:
-
-```text
-Celery + Redis
-```
-
-Only add Celery/Redis for a deliberate distributed-worker learning goal.
-
-> Note: technology choice deliberately deferred — see override note at top of
-> this document. Also weigh Render's Free-tier idle spin-down before
-> committing to a pure in-process scheduler.
+> Technology: **GitHub Actions scheduled workflow calling a protected API
+> endpoint** — decided 2026-07-16, see override note at top of this document
+> for the full reasoning and rejected alternatives (in-process APScheduler,
+> Render Cron Job, Celery+Redis).
 
 ## Tasks
 
@@ -700,7 +711,7 @@ Freeze Tier 1
 12. Add DB unique constraint
 13. Add idempotent execution service
 14. Add rollback tests
-15. Add scheduler (technology TBD — see override note)
+15. Add scheduler (GitHub Actions scheduled workflow — see override note)
 16. Add retry/restart safety
 17. Add budget usage calculation (base-currency amounts)
 18. Add notification/alert-event models
