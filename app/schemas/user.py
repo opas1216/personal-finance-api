@@ -5,12 +5,14 @@ from datetime import datetime
 class UserCreate(BaseModel):
     email: str
     password: str
+    base_currency: str = "TWD"  # 新增 base_currency 欄位，預設為 TWD
 
 
 class UserResponse(BaseModel):
     id :int
     email: str
     created_at: datetime
+    base_currency: str
 
     model_config = {'from_attributes': True}
 

@@ -58,7 +58,8 @@ def register(db: Session, data: UserCreate) -> User:
 
     # 3. Create user model instance
     user = User(email=data.email,
-                password_hash=hashed_password,)
+                password_hash=hashed_password,
+                base_currency=data.base_currency,)
 
 
     # 4. Save to database
