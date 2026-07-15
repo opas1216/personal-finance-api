@@ -219,10 +219,53 @@ scheduler, budgets/alerts, testing, observability), added 2026-07-15.
   to the `db` service and change `app`'s `depends_on` to
   `db: condition: service_healthy` so `app` waits for Postgres to be truly
   ready, not just for the container to have started.
-- **Not yet done**: `app/schemas/user.py` (`UserCreate`/`UserResponse`
-  don't have `base_currency` yet), `exchange_rates` model/migration,
-  exchange-rate service, currency validation, `Transaction` snapshot
-  columns, `report_service.py` update, tests.
+- **Done since**: `app/schemas/user.py` (`UserCreate`/`UserResponse` now
+  have `base_currency`, default `TWD` — matches the model's
+  `server_default`, not `USD`; wired into `auth_service.register()`,
+  commit `f79220a`). `ExchangeRate` model + migration added (commit
+  `4b8bc80`) — `base_currency`/`target_currency`/`rate`
+  (`Numeric(18, 8)`, higher precision than money fields since rates need
+  more decimal places)/`as_of_date`/`created_at`, with a
+  `UniqueConstraint(base_currency, target_currency, as_of_date)` as the
+  cache key. Hit and fixed a real bug along the way: `__table_args__ = (
+  UniqueConstraint(...) )` without a trailing comma isn't a tuple in
+  Python (it's just the `UniqueConstraint` object itself, parens alone
+  don't make a tuple — only a comma does), which SQLAlchemy rejects at
+  class-definition time (`ArgumentError: __table_args__ value must be a
+  tuple, dict, or None`) — reproduced and confirmed via direct import
+  before the fix, and again after.
+- **Design refinement (not yet implemented)**: on a cache miss, the
+  exchange-rate service should fetch **all** target currencies for that
+  `base_currency` + date in one Frankfurter call (omit `quotes`) and bulk
+  -insert the whole batch, not just the one target actually needed — the
+  marginal cost of a wider fetch is ~zero (Frankfurter returns everything
+  for a base in one response regardless), and it means any other
+  transaction that needs a *different* target for the same base+date
+  later that day is already a cache hit. This gets most of the benefit of
+  a proactive daily refresh without needing a scheduled job — user's own
+  idea, arrived at through a discussion of doing this at real scale
+  (thousands of users). Concurrency note for the same design: two
+  requests can race on the same cache-miss and both attempt to insert the
+  same batch — handle by catching the `IntegrityError` from the
+  `UniqueConstraint`, rolling back, and re-querying the cache (whichever
+  request "won" the insert), not `ON CONFLICT DO NOTHING` (Postgres-only
+  syntax that wouldn't work against the SQLite test database) — not yet
+  implemented, next up when the exchange-rate service itself is written.
+- **`as_of_date` clarification (important, already correctly reasoned
+  through)**: must always be the transaction's own `transaction_date`,
+  never "today's system date" at query time — using "today" would break
+  report stability for backdated/backfilled transactions. Confirmed
+  Frankfurter `v2` supports querying any specific historical date via
+  `date=YYYY-MM-DD` (tested directly), so backfilled transactions are not
+  a gap — the historical rate for that exact date is always fetchable on
+  first use, regardless of how long ago it was.
+- **Still not done**: the exchange-rate service itself (get_rate function
+  with caching + Frankfurter v2 call + the batch-fetch-on-miss + race
+  handling above), currency validation against Frankfurter's
+  `v2/currencies` list, `Transaction` snapshot columns + migration,
+  `report_service.py` update to sum snapshotted amounts, tests, and the
+  `docker-compose.yml` healthcheck fix (see above) which is still only
+  designed, not applied.
 
 **Personal note (not project-scoped)**: the user also keeps a personal
 interview-prep Q&A collection at `C:\Projects\INTERVIEW_Q&A.md` (outside
