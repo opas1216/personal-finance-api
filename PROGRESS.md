@@ -181,6 +181,49 @@ scheduler, budgets/alerts, testing, observability), added 2026-07-15.
   support cross-currency transfers), atomic DB transaction, rollback tests,
   excluded from reports.
 
+### Phase 1a — in progress (2026-07-17)
+
+- **Frankfurter API version corrected to `v2`** (not `v1`) — verified
+  empirically that `v1` only covers ~30 ECB currencies and does not include
+  TWD at all; `v2` covers 165 currently-active currencies and does include
+  TWD. Confirmed request/response shapes for `v2/rates` (param is `quotes`,
+  not `v1`'s `symbols`) and `v2/currencies`. `accounts.currency` validation
+  will check against Frankfurter's own `v2/currencies` list (cached), not a
+  generic ISO 4217 list, since ISO 4217 doesn't guarantee Frankfurter has
+  rate data for every code. Full detail in `TIER1_EXPANSION_PLAN.md`'s
+  override note.
+- **Scheduler technology decided ahead of schedule**: GitHub Actions
+  scheduled workflow calling a protected endpoint (see override note in
+  `TIER1_EXPANSION_PLAN.md` for the full comparison against in-process
+  APScheduler and Render Cron Job, the latter ruled out at a verified
+  minimum $1/mo).
+- **`users.base_currency` added** (`app/models/user.py`): user chose
+  **`server_default="TWD"`** as the default (not `USD` — TWD fits the
+  user's own real-world usage better; this project's test data has used
+  TWD accounts throughout, and TWD is confirmed supported by Frankfurter
+  `v2`). Correctly used `server_default` (database-level, applies to
+  existing rows at `ALTER TABLE` time) rather than `default` (Python-side
+  only, would not backfill existing users since they aren't re-inserted
+  through the ORM) — this distinction was worked through explicitly since
+  the `users` table already has real rows.
+- **Docker gotcha hit and fixed while working on this**: running
+  `docker compose up -d` (no service name) starts *all* services, not just
+  `db` — built and started an `app` container the user didn't intend to
+  run alongside local `uvicorn --reload`. That `app` container then crashed
+  on its own (`Exited (1)`) because `depends_on: - db` only guarantees
+  start *order*, not that Postgres inside `db` is actually ready to accept
+  connections yet (`FATAL: the database system is starting up`) — this is
+  the exact `depends_on` limitation already logged in the Week 10 Docker
+  gotchas below, now actually encountered in practice. Fix identified (not
+  yet applied to `docker-compose.yml`): add a `healthcheck` (`pg_isready`)
+  to the `db` service and change `app`'s `depends_on` to
+  `db: condition: service_healthy` so `app` waits for Postgres to be truly
+  ready, not just for the container to have started.
+- **Not yet done**: `app/schemas/user.py` (`UserCreate`/`UserResponse`
+  don't have `base_currency` yet), `exchange_rates` model/migration,
+  exchange-rate service, currency validation, `Transaction` snapshot
+  columns, `report_service.py` update, tests.
+
 **Personal note (not project-scoped)**: the user also keeps a personal
 interview-prep Q&A collection at `C:\Projects\INTERVIEW_Q&A.md` (outside
 this repo, not git-tracked) — that file, not this one, is where
