@@ -4,7 +4,7 @@ from starlette.responses import JSONResponse
 
 from app.database import engine
 from app.routers import accounts, categories, auth, transactions, reports
-from app.exceptions import NotFoundException, ForbiddenException, ConflictException, BadRequestException
+from app.exceptions import NotFoundException, ForbiddenException, ConflictException, BadRequestException, ExternalServiceException
 import logging
 from app.logging_config import setup_logging
 
@@ -32,6 +32,13 @@ async def conflict_handler(request: Request, exc: ConflictException):
 async def bad_request_handler(request: Request, exc: BadRequestException):
     logger.warning(f"{request.method} {request.url.path} - BadRequestException: {exc.detail}")
     return JSONResponse(status_code=400, content={"detail": exc.detail})
+
+@app.exception_handler(ExternalServiceException)
+async def external_service_exception(request: Request, exc: ExternalServiceException):
+    logger.warning(f"{request.method} {request.url.path} - ExternalServiceException: {exc.detail}")
+
+    # status code 用 502 Bad Gateway——語意是「我們自己沒錯,但我們依賴的上游服務掛了」
+    return JSONResponse(status_code=502, content={"detail": exc.detail})
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):

@@ -38,3 +38,13 @@ class BadRequestException(Exception):
     """
     def __init__(self, detail: str = "Bad request"):
         self.detail = detail
+
+class ExternalServiceException(Exception):
+    """
+    Exception raised for errors related to external services, such as when an external API call fails.
+
+    Attributes:
+        detail (str): A message describing the error.
+    """
+    def __init__(self, detail: str = "External service error"):
+        self.detail = detail
