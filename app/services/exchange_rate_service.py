@@ -3,8 +3,10 @@ from datetime import date
 import httpx
 from sqlalchemy import Date
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from decimal import Decimal
-from app.exceptions import ExternalServiceException
+from app.exceptions import ExternalServiceException, NotFoundException
+from app.models import ExchangeRate
 
 
 
@@ -22,14 +24,33 @@ def get_rate(db: Session, base_currency: str, target_currency: str, as_of_date: 
     if base_currency == target_currency:
         return Decimal("1.0")
 
+    existing = db.query(ExchangeRate).filter(
+        ExchangeRate.base_currency == base_currency,
+        ExchangeRate.target_currency == target_currency,
+        ExchangeRate.as_of_date == as_of_date,
+    ).first()
+
+    if existing:
+        return Decimal(existing.rate)
+
     rates_response = _fetch_rates_from_frankfurter(base_currency, as_of_date)
 
     _cache_rates(db, base_currency, as_of_date, rates_response)
 
+    cached = db.query(ExchangeRate).filter(
+        ExchangeRate.base_currency == base_currency,
+        ExchangeRate.target_currency == target_currency,
+        ExchangeRate.as_of_date == as_of_date,
+    ).first()
+
+    if not cached:
+        raise NotFoundException(f"Exchange rate not available for {base_currency} -> {target_currency} on {as_of_date}")
+
+    return Decimal(cached.rate)
 
 
 
-    return rate
+
 
 
 def _fetch_rates_from_frankfurter(base_currency: str, as_of_date: date) -> list[dict]:
@@ -53,16 +74,20 @@ def _cache_rates(db: Session, base_currency: str, as_of_date: date, rates: list[
     """
 
     # Frankfurter return like {"date":"2026-07-01","base":"USD","quote":"JPY","rate":162.61}
-    for quote_currency, rate in rates.items():
-        if quote_currency == base_currency:
-            continue  # 跳過 base_currency -> base_currency 的匯率
+    for item in rates:
+        quote_currency = item["quote"]
+        rate = item["rate"]
 
-        db.add(ExchangeRate(
+        exchange_rate = ExchangeRate(
             base_currency=base_currency,
             target_currency=quote_currency,
-            rate=Decimal(rate),
-            as_of_date=as_of_date
-        ))
+            rate=Decimal(str(rate)),
+            as_of_date=as_of_date,
+        )
+        db.add(exchange_rate)
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
 
