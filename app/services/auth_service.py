@@ -7,10 +7,11 @@ from fastapi.security import OAuth2PasswordBearer
 from pwdlib import PasswordHash
 import os
 
-from app.exceptions import ConflictException
+from app.exceptions import ConflictException, BadRequestException
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, Token
 from app.database import get_db
+from app.services.exchange_rate_service import is_valid_currency
 
 password_hash = PasswordHash.recommended()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -55,6 +56,8 @@ def register(db: Session, data: UserCreate) -> User:
     # 2. Hash the password
     hashed_password = hash_password(data.password)
 
+    if not is_valid_currency(data.base_currency):
+        raise BadRequestException(f"Unsupported base_currency: {data.base_currency}")
 
     # 3. Create user model instance
     user = User(email=data.email,

@@ -8,7 +8,7 @@ from decimal import Decimal
 from app.exceptions import ExternalServiceException, NotFoundException
 from app.models import ExchangeRate
 
-
+_supported_currencies_cache: set[str] | None = None
 
 
 def get_rate(db: Session, base_currency: str, target_currency: str, as_of_date: date) -> Decimal:
@@ -31,7 +31,7 @@ def get_rate(db: Session, base_currency: str, target_currency: str, as_of_date: 
     ).first()
 
     if existing:
-        return Decimal(existing.rate)
+        return existing.rate
 
     rates_response = _fetch_rates_from_frankfurter(base_currency, as_of_date)
 
@@ -46,7 +46,7 @@ def get_rate(db: Session, base_currency: str, target_currency: str, as_of_date: 
     if not cached:
         raise NotFoundException(f"Exchange rate not available for {base_currency} -> {target_currency} on {as_of_date}")
 
-    return Decimal(cached.rate)
+    return cached.rate
 
 
 
@@ -90,4 +90,33 @@ def _cache_rates(db: Session, base_currency: str, as_of_date: date, rates: list[
         db.commit()
     except IntegrityError:
         db.rollback()
+
+
+def _fetch_supported_currencies_from_frankfurter() -> set[str]:
+    global _supported_currencies_cache
+
+    if _supported_currencies_cache is not None:
+        return _supported_currencies_cache
+
+    try:
+        response = httpx.get("https://api.frankfurter.dev/v2/currencies")
+        response.raise_for_status()
+        _supported_currencies_cache = set([item["iso_code"] for item in response.json()])
+        return _supported_currencies_cache
+    except httpx.HTTPError as e:
+        raise ExternalServiceException(f"Frankfurter API call failed: {e}")
+
+
+def is_valid_currency(currency: str) -> bool:
+    """
+    檢查貨幣代碼是否為 Frankfurter 支援的貨幣。
+    """
+
+    supported_currencies = _fetch_supported_currencies_from_frankfurter()
+    return currency in supported_currencies
+
+
+
+
+
 

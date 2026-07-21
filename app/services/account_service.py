@@ -2,11 +2,15 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.models.account import Account
 from app.schemas.account import AccountCreate, AccountUpdate
-from app.exceptions import NotFoundException, ForbiddenException
+from app.exceptions import NotFoundException, ForbiddenException, BadRequestException
+from app.services.exchange_rate_service import is_valid_currency
 
 
 
 def create_account(db: Session, user_id: int, data: AccountCreate) -> Account:
+    if not is_valid_currency(data.currency):
+        raise BadRequestException(f"Unsupported currency: {data.currency}")
+
     # 1. 把 schema 轉成 model
     account = Account(**data.model_dump(), user_id=user_id)
 
@@ -40,6 +44,11 @@ def get_accounts(db: Session, user_id: int) -> list[Account]:
 
 def update_account(db: Session, account_id: int, user_id: int, data: AccountUpdate) -> Account:
     account = get_account(db, account_id, user_id)
+
+    if data.currency is not None:
+        if not is_valid_currency(data.currency):
+            raise BadRequestException(f"Unsupported currency: {data.currency}")
+
 
     for key, value in data.model_dump(exclude_none=True).items():
         setattr(account, key, value)
