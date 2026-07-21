@@ -1,4 +1,5 @@
 import pytest
+import httpx
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -59,3 +60,26 @@ def auth_headers(client):
     token = response.json()["access_token"]
     # 回傳帶有 token 的 Authorization header，供需要驗證的測試使用
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(autouse=True)
+def mock_frankfurter(monkeypatch):
+    # 模擬 Frankfurter API 回傳的匯率資料
+    def fake_get(url, params=None, **kwargs):
+        request = httpx.Request("GET", url, params=params)
+
+        if "v2/currencies" in url:
+            return httpx.Response(200, request=request, json=[
+                {"iso_code": "TWD"},
+                {"iso_code": "USD"},
+                {"iso_code": "JPY"},
+            ])
+
+        if "v2/rates" in url:
+            return httpx.Response(200, request=request, json=[
+                {"quote": "TWD", "rate": 30.5},
+                {"quote": "USD", "rate": 1.0},
+                {"quote": "JPY", "rate": 110.0},
+            ])
+
+    monkeypatch.setattr(httpx, "get", fake_get)
