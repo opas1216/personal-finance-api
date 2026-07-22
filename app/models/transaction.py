@@ -11,3 +11,5 @@ class Transaction(Base):
     transaction_type = Column(String, nullable=False)
     transaction_date = Column(Date, nullable=False)
     description = Column(String, nullable=True)
+    exchange_rate_to_base = Column(Numeric(18, 8), nullable=False)
+    base_currency_amount = Column(Numeric(10, 2), nullable=False)

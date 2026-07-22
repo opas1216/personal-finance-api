@@ -3,8 +3,10 @@ from fastapi import HTTPException, status
 from app.models.transaction import Transaction
 from app.models.account import Account
 from app.models.category import Category
+from app.models.user import User
 from app.schemas.transaction import TransactionCreate, TransactionUpdate
 from app.exceptions import NotFoundException
+from app.services.exchange_rate_service import get_rate
 
 
 
@@ -21,8 +23,12 @@ def create_transaction(db: Session, user_id: int, data: TransactionCreate) -> Tr
         if not category:
             raise NotFoundException("Category not found")
 
+    user = db.query(User).filter(User.id == user_id).first()
+    rate = get_rate(db, account.currency, user.base_currency, data.transaction_date)
+    base_currency_amount = data.amount * rate
 
-    transaction = Transaction(**data.model_dump(), user_id=user_id)
+
+    transaction = Transaction(**data.model_dump(), user_id=user_id, exchange_rate_to_base=rate, base_currency_amount=base_currency_amount)
     db.add(transaction)
     db.commit()
     db.refresh(transaction)
@@ -73,6 +79,14 @@ def update_transaction(db: Session, user_id: int, transaction_id: int, data: Tra
 
     for key, value in data.model_dump(exclude_none=True).items():
         setattr(transaction, key, value)
+
+    if data.account_id or data.amount or data.transaction_date:
+        # 如果有更新 account_id、amount 或 transaction_date，則需要重新計算 base_currency_amount
+        account = db.query(Account).filter(Account.id == transaction.account_id).first()
+        user = db.query(User).filter(User.id == user_id).first()
+        rate = get_rate(db, account.currency, user.base_currency, transaction.transaction_date)
+        transaction.exchange_rate_to_base = rate
+        transaction.base_currency_amount = transaction.amount * rate
 
     db.commit()
     db.refresh(transaction)
