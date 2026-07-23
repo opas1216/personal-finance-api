@@ -1,9 +1,11 @@
 from decimal import Decimal
 import pytest
+from app.models.exchange_rate import ExchangeRate
+from datetime import date
 
 @pytest.fixture
 def two_transactions(client, auth_headers):
-    account_data = {"name": "測試帳戶", "type": "checking", "currency": "TWD"}
+    account_data = {"name": "測試帳戶", "type": "checking", "currency": "USD"}
     account_id = client.post("/accounts/", json=account_data, headers=auth_headers).json()["id"]
 
     category_data = {"name": "外送", "type": "食"}
@@ -32,9 +34,9 @@ def test_monthly_summary_success(client, auth_headers, two_transactions):
     response = client.get("/reports/monthly", params={"year": year, "month": month}, headers=auth_headers)
 
     assert response.status_code == 200
-    assert Decimal(response.json()["total_income"]) == Decimal("2700.00")
-    assert Decimal(response.json()["total_expense"]) == Decimal("500.00")
-    assert Decimal(response.json()["net"]) == Decimal("2200.00")
+    assert Decimal(response.json()["total_income"]) == Decimal("2700.00") * Decimal("30.5")
+    assert Decimal(response.json()["total_expense"]) == Decimal("500.00") * Decimal("30.5")
+    assert Decimal(response.json()["net"]) == Decimal("2200.00") * Decimal("30.5")
 
 
 def test_monthly_summary_no_transactions(client, auth_headers):
@@ -66,10 +68,10 @@ def test_category_summary_success(client, auth_headers, two_transactions):
     assert len(data) == 2
     by_type = {item["transaction_type"]: item for item in data}
     assert by_type["expense"]["category_name"] == "外送"
-    assert Decimal(by_type["expense"]["total"]) == Decimal("500.00")
+    assert Decimal(by_type["expense"]["total"]) == Decimal("500.00") * Decimal("30.5")
 
     assert by_type["income"]["category_name"] == "外送"
-    assert Decimal(by_type["income"]["total"]) == Decimal("2700.00")
+    assert Decimal(by_type["income"]["total"]) == Decimal("2700.00") * Decimal("30.5")
 
 def test_category_summary_empty(client, auth_headers):
     year = 2026
@@ -84,3 +86,31 @@ def test_category_summary_empty(client, auth_headers):
 def test_category_summary_unauthenticated(client):
     response = client.get("/reports/categories")
     assert response.status_code == 401
+
+
+def test_report_stable_after_rate_change(client, auth_headers, db, create_usd_account):
+    # 1. 建立 USD 帳戶（user.base_currency 預設 TWD）
+    # 2. 建立一筆交易，當下用 mock 的 rate=30.5 快照
+    client.post("/transactions/", json={
+        "account_id": create_usd_account.json()["id"], "amount": "100.00",
+        "transaction_type": "expense", "transaction_date": "2026-07-10"
+    }, headers=auth_headers)
+
+    # 3. 改變快取之前，先拿一次報表
+    report_before = client.get("/reports/monthly", params={"year": 2026, "month": 7}, headers=auth_headers).json()
+    assert Decimal(report_before["total_expense"]) == Decimal("100.00") * Decimal("30.5")
+
+    # 4. 直接改資料庫裡快取的匯率（模擬「匯率事後被改變了」）
+    cached_rate = db.query(ExchangeRate).filter(
+        ExchangeRate.base_currency == "USD",
+        ExchangeRate.target_currency == "TWD",
+        ExchangeRate.as_of_date == date(2026, 7, 10),
+    ).first()
+    cached_rate.rate = Decimal("99.0")
+    db.commit()
+
+    # 5. 再拿一次報表
+    report_after = client.get("/reports/monthly", params={"year": 2026, "month": 7}, headers=auth_headers).json()
+
+    # 6. 斷言：報表數字沒有變，還是原本快照的值，不是用新的 99.0 重算出來的
+    assert Decimal(report_after["total_expense"]) == Decimal(report_before["total_expense"])

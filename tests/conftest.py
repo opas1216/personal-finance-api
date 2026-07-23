@@ -83,3 +83,16 @@ def mock_frankfurter(monkeypatch):
             ])
 
     monkeypatch.setattr(httpx, "get", fake_get)
+
+
+@pytest.fixture
+def create_usd_account(client, auth_headers):
+    # create account
+    account = client.post("/accounts/", json={
+        "name": "測試帳戶",
+        "type": "checking",
+        "currency": "USD"
+    }, headers=auth_headers)
+
+    assert account.status_code == 201, f"create_account fixture failed: {account.status_code} {account.text}"
+    return account

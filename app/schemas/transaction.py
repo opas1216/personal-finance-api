@@ -44,5 +44,7 @@ class TransactionResponse(BaseModel):
     transaction_type: str  # income or expense
     transaction_date: date
     description: str | None = None
+    exchange_rate_to_base: Decimal
+    base_currency_amount: Decimal
 
     model_config = {"from_attributes": True}
