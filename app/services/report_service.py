@@ -9,7 +9,7 @@ from app.schemas.report import MonthlySummary, CategorySummary
 
 def get_monthly_summary(db: Session, user_id: int, year: int, month: int) -> MonthlySummary:
     def sum_by_type(transaction_type: str) -> Decimal:
-        result = db.query(func.sum(Transaction.amount)).filter(
+        result = db.query(func.sum(Transaction.base_currency_amount)).filter(
             Transaction.user_id == user_id,
             Transaction.transaction_type == transaction_type,
             func.extract('year', Transaction.transaction_date) == year,
@@ -33,7 +33,7 @@ def get_monthly_summary(db: Session, user_id: int, year: int, month: int) -> Mon
 def get_category_summary(db: Session, user_id: int, year: int, month: int) -> list[CategorySummary]:
     results = db.query(Category.name,
              Transaction.transaction_type,
-             func.sum(Transaction.amount).label("total")
+             func.sum(Transaction.base_currency_amount).label("total")
              ).select_from(Transaction).join(Category, Transaction.category_id == Category.id).filter(
         Transaction.user_id == user_id,
         func.extract('year', Transaction.transaction_date) == year,
