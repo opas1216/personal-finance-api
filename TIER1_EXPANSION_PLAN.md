@@ -245,20 +245,26 @@ Separate transaction direction from category applicability.
 See the currency override note at the top of this document for the full
 design. Summary of tasks:
 
-- [ ] Add `users.base_currency`
-- [ ] Add `exchange_rates` model/migration (`base_currency`,
-  `target_currency`, `rate`, `as_of_date`)
-- [ ] Add an exchange-rate service that fetches from Frankfurter **v2**
+- [x] Add `users.base_currency` (`eda1187`, `f79220a`)
+- [x] Add `exchange_rates` model/migration (`base_currency`,
+  `target_currency`, `rate`, `as_of_date`) (`4b8bc80`)
+- [x] Add an exchange-rate service that fetches from Frankfurter **v2**
   (see override note — `v1` doesn't have TWD) and caches by date (no rate
-  for a given date is fetched twice)
-- [ ] Validate `accounts.currency` against ISO 4217 codes
-- [ ] Snapshot the resolved rate/base-currency amount on `Transaction`
-  creation
-- [ ] Update `report_service.py` to sum snapshotted base-currency amounts
-  instead of raw `Transaction.amount`
-- [ ] Add tests: same-currency transaction (rate = 1, sanity check),
+  for a given date is fetched twice) (`03b5dd2`, `1fa5f9d`)
+- [x] Validate `accounts.currency` — against Frankfurter's own
+  `v2/currencies` list rather than raw ISO 4217 (see override note: ISO
+  4217 doesn't guarantee Frankfurter has rate data for every code)
+  (`5760412`)
+- [x] Snapshot the resolved rate/base-currency amount on `Transaction`
+  creation (`eb1a705`)
+- [x] Update `report_service.py` to sum snapshotted base-currency amounts
+  instead of raw `Transaction.amount` (`8025ba2`)
+- [x] Add tests: same-currency transaction (rate = 1, sanity check),
   cross-currency transaction, a report that doesn't change when a later
-  transaction changes today's cached rate
+  transaction changes today's cached rate (`b9a832d`) — 28/28 passing
+
+Phase 1a complete as of `1f17f31` (2026-07-23, docker-compose healthcheck
+fix). Not yet started: Transfer Design tasks below (Phase 1c).
 
 ## Transfer Design
 

@@ -282,13 +282,17 @@ scheduler, budgets/alerts, testing, observability), added 2026-07-15.
   registration at all — the field is only set once, at signup. Revisit
   (implementing the bulk re-snapshot approach above) if/when a
   "change base currency" feature is ever built, likely Tier 2+.
-- **Still not done**: the exchange-rate service itself (get_rate function
-  with caching + Frankfurter v2 call + the batch-fetch-on-miss + race
-  handling above), currency validation against Frankfurter's
-  `v2/currencies` list, `Transaction` snapshot columns + migration,
-  `report_service.py` update to sum snapshotted amounts, tests, and the
-  `docker-compose.yml` healthcheck fix (see above) which is still only
-  designed, not applied.
+- **Phase 1a done (2026-07-23)**: the exchange-rate service (get_rate
+  function with caching + Frankfurter v2 call + the batch-fetch-on-miss +
+  race handling above, `03b5dd2`/`1fa5f9d`), currency validation against
+  Frankfurter's `v2/currencies` list (`5760412`), `Transaction` snapshot
+  columns + migration (`eb1a705`), `report_service.py` update to sum
+  snapshotted amounts (`8025ba2`), tests — same-currency, cross-currency,
+  report-stability-under-later-rate-change (`b9a832d`, 28/28 passing) —
+  and the `docker-compose.yml` healthcheck fix (`1f17f31`) are all applied.
+  **Not started: Phase 1c (Transfers)** — see Transfer Design section in
+  `TIER1_EXPANSION_PLAN.md`. No commits on this repo since `1f17f31`
+  (2026-07-23).
 
 **Personal note (not project-scoped)**: the user also keeps a personal
 interview-prep Q&A collection at `C:\Projects\INTERVIEW_Q&A.md` (outside
