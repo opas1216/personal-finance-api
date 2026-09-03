@@ -12,9 +12,12 @@ def two_transactions(client, auth_headers):
     category_id = client.post("/categories/", json=category_data, headers=auth_headers).json()["id"]
 
     expense = client.post("/transactions/", json={
-        "account_id": account_id, "category_id": category_id,
-        "amount": 500.00, "transaction_type": "expense",
-        "transaction_date": "2026-07-10", "description": "颱風天放假的早餐"
+        "account_id": account_id,
+        "category_id": category_id,
+        "amount": 500.00,
+        "transaction_type": "expense",
+        "transaction_date": "2026-07-10",
+        "description": "颱風天放假的早餐"
     }, headers=auth_headers)
     assert expense.status_code == 201
 

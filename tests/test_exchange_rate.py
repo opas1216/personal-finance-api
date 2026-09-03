@@ -1,33 +1,11 @@
 import pytest
 from decimal import Decimal
 
-@pytest.fixture
-def create_twd_account(client, auth_headers):
-    # create account
-    account = client.post("/accounts/", json={
-        "name": "測試帳戶",
-        "type": "checking",
-        "currency": "TWD"
-    }, headers=auth_headers)
 
-    assert account.status_code == 201, f"create_account fixture failed: {account.status_code} {account.text}"
-    return account
 
 @pytest.fixture
-def create_jpy_account(client, auth_headers):
-    # create account
-    account = client.post("/accounts/", json={
-        "name": "測試帳戶",
-        "type": "checking",
-        "currency": "JPY"
-    }, headers=auth_headers)
-
-    assert account.status_code == 201, f"create_account fixture failed: {account.status_code} {account.text}"
-    return account
-
-@pytest.fixture
-def generate_transaction(client, auth_headers, create_account):
-    account_id = create_account.json()["id"]
+def generate_transaction(client, auth_headers, create_jpy_account):
+    account_id = create_jpy_account.json()["id"]
     # create transaction
     transaction = client.post("/transactions/", json={
         "account_id": account_id,

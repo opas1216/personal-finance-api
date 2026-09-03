@@ -4,13 +4,15 @@ from app.models import Account
 from app.schemas.transfer import TransferCreate
 from app.models.transfer import Transfer
 from app.services.exchange_rate_service import get_rate
-from app.exceptions import NotFoundException
+from app.exceptions import NotFoundException, BadRequestException
 
 
 
 def create_transfer(db: Session, user_id: int, data: TransferCreate) -> Transfer:
-    # get currency rate for source and destination accounts
+    if data.source_account_id == data.destination_account_id:
+        raise BadRequestException("Source and destination accounts cannot be the same")
 
+    # get currency rate for source and destination accounts
     source_account = db.query(Account).filter(Account.id == data.source_account_id, Account.user_id == user_id).first()
     if not source_account:
         raise NotFoundException("Source account not found")
@@ -27,3 +29,17 @@ def create_transfer(db: Session, user_id: int, data: TransferCreate) -> Transfer
     db.commit()
     db.refresh(transfer)
     return transfer
+
+
+def get_transfer(db: Session, user_id: int, transfer_id: int) -> Transfer:
+    transfer = db.query(Transfer).filter(Transfer.user_id == user_id, Transfer.id == transfer_id).first()
+
+    if not transfer:
+        raise NotFoundException("Transfer not found")
+
+    return transfer
+
+
+def get_transfers(db: Session, user_id: int) -> list[Transfer]:
+    transfers = db.query(Transfer).filter(Transfer.user_id == user_id).all()
+    return transfers

@@ -84,6 +84,35 @@ def mock_frankfurter(monkeypatch):
 
     monkeypatch.setattr(httpx, "get", fake_get)
 
+@pytest.fixture
+def create_accounts(client, auth_headers, create_twd_account, create_jpy_account, create_usd_account):
+    return {"TWD": create_twd_account, "JPY": create_jpy_account, "USD": create_usd_account}
+
+
+@pytest.fixture
+def create_twd_account(client, auth_headers):
+    # create account
+    account = client.post("/accounts/", json={
+        "name": "測試帳戶",
+        "type": "checking",
+        "currency": "TWD"
+    }, headers=auth_headers)
+
+    assert account.status_code == 201, f"create_account fixture failed: {account.status_code} {account.text}"
+    return account
+
+@pytest.fixture
+def create_jpy_account(client, auth_headers):
+    # create account
+    account = client.post("/accounts/", json={
+        "name": "測試帳戶",
+        "type": "checking",
+        "currency": "JPY"
+    }, headers=auth_headers)
+
+    assert account.status_code == 201, f"create_account fixture failed: {account.status_code} {account.text}"
+    return account
+
 
 @pytest.fixture
 def create_usd_account(client, auth_headers):
