@@ -292,14 +292,24 @@ and no conversion happens.)
 
 Tasks:
 
-- [ ] Add transfer model
-- [ ] Add transfer service
-- [ ] Add transfer API
-- [ ] Make transfer atomic with DB transaction
-- [ ] Exclude transfers from income/expense reports
-- [ ] Add rollback tests
-- [ ] Add cross-currency transfer test (uses the Phase 1a exchange-rate
-  service)
+- [x] Add transfer model (`b5835d0`)
+- [x] Add transfer service (`e885782`)
+- [x] Add transfer API (`1c8afd3`)
+- [x] Make transfer atomic with DB transaction (by code ordering —
+  `get_rate()` runs before `db.add()`/`db.commit()`, so a failed rate
+  lookup never reaches the DB write)
+- [x] Exclude transfers from income/expense reports (`report_service.py`
+  only ever queries `Transaction`, never `Transfer` — exclusion is by
+  construction, not an explicit filter)
+- [x] Add rollback tests (`test_transfer_rollback_on_exchange_rate_failure`,
+  2026-09-04)
+- [x] Add cross-currency transfer test (uses the Phase 1a exchange-rate
+  service) (`test_create_transfer`, 2026-09-04)
+
+Phase 1c complete as of 2026-09-04. Also added
+`test_transfer_excluded_from_monthly_report` and
+`test_same_account_transfer` beyond the checklist above. 32/32 tests
+passing.
 
 ## Stop Point 1
 
@@ -309,13 +319,15 @@ Proceed only when:
   label, any transaction_type is allowed on it)
 - ~~Strict categories reject invalid directions~~ (not applicable — no
   direction validation adopted)
-- Reports sum snapshotted base-currency amounts, and a stored historical
-  transaction's contribution to a report does not change when the cached
-  exchange rate for a later date changes
-- Transfers are atomic
-- Transfers do not pollute reports
-- Cross-currency transfers convert correctly
-- Existing reports still pass
+- [x] Reports sum snapshotted base-currency amounts, and a stored
+  historical transaction's contribution to a report does not change when
+  the cached exchange rate for a later date changes
+- [x] Transfers are atomic
+- [x] Transfers do not pollute reports
+- [x] Cross-currency transfers convert correctly
+- [x] Existing reports still pass
+
+**Stop Point 1 cleared (2026-09-04).**
 
 ---
 

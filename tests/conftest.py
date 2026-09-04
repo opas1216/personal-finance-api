@@ -125,3 +125,41 @@ def create_usd_account(client, auth_headers):
 
     assert account.status_code == 201, f"create_account fixture failed: {account.status_code} {account.text}"
     return account
+
+
+@pytest.fixture
+def generate_transactions(client, auth_headers, generate_expense_transaction, generate_income_transaction):
+    return {"expense": generate_expense_transaction, "income": generate_income_transaction}
+
+
+@pytest.fixture
+def generate_expense_transaction(client, auth_headers, create_usd_account):
+    account_id = create_usd_account.json()["id"]
+
+    category_data = {"name": "外送", "type": "食"}
+    category_id = client.post("/categories/", json=category_data, headers=auth_headers).json()["id"]
+
+    # create transaction
+    transaction = client.post("/transactions/", json={
+        "account_id": account_id,
+        "category_id": category_id,
+        "amount": "500.00",
+        "transaction_type": "expense",
+        "transaction_date": "2026-06-01",
+        "description": "颱風天放假的早餐"
+    }, headers=auth_headers)
+    return transaction
+
+@pytest.fixture
+def generate_income_transaction(client, auth_headers, create_usd_account):
+    account_id = create_usd_account.json()["id"]
+
+    # create income transaction
+    transaction = client.post("/transactions/", json={
+        "account_id": account_id,
+        "amount": 2700.00,
+        "transaction_type": "income",
+        "transaction_date": "2026-06-01",
+        "description": "颱風天放假的薪資"
+    }, headers=auth_headers)
+    return transaction

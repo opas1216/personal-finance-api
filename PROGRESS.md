@@ -290,9 +290,22 @@ scheduler, budgets/alerts, testing, observability), added 2026-07-15.
   snapshotted amounts (`8025ba2`), tests — same-currency, cross-currency,
   report-stability-under-later-rate-change (`b9a832d`, 28/28 passing) —
   and the `docker-compose.yml` healthcheck fix (`1f17f31`) are all applied.
-  **Not started: Phase 1c (Transfers)** — see Transfer Design section in
-  `TIER1_EXPANSION_PLAN.md`. No commits on this repo since `1f17f31`
-  (2026-07-23).
+- **Phase 1c done (2026-09-04)**: dedicated `Transfer` model + migration
+  (`source_account_id`/`destination_account_id`/`source_amount`/
+  `destination_amount`/`transfer_date`/`description`, `b5835d0`), schema +
+  service (`create_transfer`/`get_transfer`/`get_transfers`, same-account
+  guard via `BadRequestException`, `e885782`), router registered on
+  `/transfers` (`1c8afd3`). Atomicity is by code ordering, not an explicit
+  `try/except` — `get_rate()` is called before `db.add()`/`db.commit()`, so
+  a failed rate lookup never reaches the DB write; covered by
+  `test_transfer_rollback_on_exchange_rate_failure` (monkeypatches
+  `transfer_service.get_rate` to raise `ExternalServiceException`, asserts
+  502 + `db.query(Transfer).count() == 0`). Reports exclude transfers "by
+  construction" (`report_service.py` only ever queries `Transaction`, never
+  `Transfer`) — now covered by `test_transfer_excluded_from_monthly_report`.
+  Same-account transfer rejection covered by `test_same_account_transfer`
+  (400). Cross-currency conversion covered by `test_create_transfer`.
+  32/32 tests passing.
 
 **Personal note (not project-scoped)**: the user also keeps a personal
 interview-prep Q&A collection at `C:\Projects\INTERVIEW_Q&A.md` (outside
