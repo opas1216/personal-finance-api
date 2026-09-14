@@ -4,6 +4,25 @@ from datetime import datetime, date
 from typing import Literal
 
 
+
+def _validate_start_date_not_past(v: date | None) -> date | None:
+    if v is not None and v <= date.today():
+        raise ValueError("start_date must not be in the past")
+    return v
+
+
+def _validate_frequency(v):
+    valid_frequencies = ["daily", "weekly", "monthly", "yearly"]
+    if v is not None and v not in valid_frequencies:
+        raise ValueError(f"frequency must be one of {valid_frequencies}")
+    return v
+
+def _validate_interval(v):
+    if v is not None and v <= 0:
+        raise ValueError("interval must be greater than 0")
+    return v
+
+
 class RecurringTransactionCreate(BaseModel):
     account_id: int
     category_id: int | None = None
@@ -18,9 +37,17 @@ class RecurringTransactionCreate(BaseModel):
     @field_validator("start_date")
     @classmethod
     def start_date_must_not_be_past(cls, v):
-        if v < date.today():
-            raise ValueError("start_date must not be in the past")
-        return v
+        return _validate_start_date_not_past(v)
+
+    @field_validator("frequency")
+    @classmethod
+    def frequency_must_be_valid(cls, v):
+        return _validate_frequency(v)
+
+    @field_validator("interval")
+    @classmethod
+    def interval_must_be_positive(cls, v):
+        return _validate_interval(v)
 
 
 
@@ -51,6 +78,21 @@ class RecurringTransactionUpdate(BaseModel):
     frequency: str | None = None
     interval: int | None = None
     description: str | None = None
+    start_date: date | None = None
     end_date: date | None = None
     is_active: bool | None = None
 
+    @field_validator("start_date")
+    @classmethod
+    def start_date_must_not_be_past(cls, v):
+        return _validate_start_date_not_past(v)
+
+    @field_validator("frequency")
+    @classmethod
+    def frequency_must_be_valid(cls, v):
+        return _validate_frequency(v)
+
+    @field_validator("interval")
+    @classmethod
+    def interval_must_be_positive(cls, v):
+        return _validate_interval(v)

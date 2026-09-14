@@ -4,32 +4,39 @@ from app.models import Category
 from app.models import Account
 from app.models import RecurringTransaction
 from app.schemas.recurring_transaction import RecurringTransactionCreate, RecurringTransactionResponse, RecurringTransactionUpdate
-from app.exceptions import NotFoundException
+from app.exceptions import NotFoundException, BadRequestException
 from datetime import date, datetime, timedelta
 
 
-def calculate_next_run_date(start_date: date, frequency: str, interval: int):
+def _advanced_one_period(current_date: date, frequency: str, interval: int) -> date:
     if frequency == "daily":
-        return start_date + timedelta(days=interval)
+        return current_date + timedelta(days=interval)
     elif frequency == "weekly":
-        return start_date + timedelta(weeks=interval)
+        return current_date + timedelta(weeks=interval)
     elif frequency == "monthly":
-        month = start_date.month - 1 + interval #transfrom to 0-based.
-        year = start_date.year + month // 12
+        month = current_date.month - 1 + interval #transfrom to 0-based.
+        year = current_date.year + month // 12
         month = month % 12 + 1  # transform back to 1-based
-        day = min(start_date.day, [31,
+        day = min(current_date.day, [31,
                                    29 if year % 4 == 0 and not year % 100 == 0 or year % 400 == 0 else 28,
                                    31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
         return date(year, month, day)
     elif frequency == "yearly":
-        year = start_date.year + interval
-        month = start_date.month
-        day = min(start_date.day, [31,
+        year = current_date.year + interval
+        month = current_date.month
+        day = min(current_date.day, [31,
                                    29 if year % 4 == 0 and not year % 100 == 0 or year % 400 == 0 else 28,
                                    31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
         return date(year, month, day)
     else:
         raise ValueError("Invalid frequency. Must be 'daily', 'weekly', or 'monthly'.")
+
+
+def  calculate_next_run_date(start_date: date, frequency: str, interval: int):
+    next_run_date = _advanced_one_period(start_date, frequency, interval)
+    while next_run_date <= date.today():
+        next_run_date = _advanced_one_period(next_run_date, frequency, interval)
+    return next_run_date
 
 
 
@@ -87,23 +94,24 @@ def update_recurring_transaction(db: Session, user_id: int, recurring_transactio
         if not category:
             raise NotFoundException("Category not found")
 
+    next_run_date = None
+
     for key, value in data.model_dump(exclude_none=True).items():
         setattr(recurring_transaction, key, value)
 
     if data.frequency or data.interval:
         if data.start_date:
-            start_date = data.start_date
+            next_run_date = data.start_date
         else:
-            start_date = recurring_transaction.start_date
-        next_run_date = calculate_next_run_date(recurring_transaction.start_date,
-                                                data.frequency or recurring_transaction.frequency,
-                                                data.interval or recurring_transaction.interval)
+            raise BadRequestException("Start date is required when updating frequency or interval")
+
     else:
         if data.start_date:
-            next_run_date = calculate_next_run_date(data.start_date,
-                                                    recurring_transaction.frequency,
-                                                    recurring_transaction.interval)
+            recurring_transaction.start_date = data.start_date
+            next_run_date = data.start_date
 
+    if next_run_date:
+        recurring_transaction.next_run_date = next_run_date
 
     db.commit()
     db.refresh(recurring_transaction)
