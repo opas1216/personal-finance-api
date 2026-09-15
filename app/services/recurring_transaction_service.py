@@ -1,3 +1,5 @@
+import dbm.sqlite3
+
 from sqlalchemy.orm import Session
 
 from app.models import Category
@@ -42,7 +44,7 @@ def  calculate_next_run_date(start_date: date, frequency: str, interval: int):
 
 def create_recurring_transaction(db: Session, user_id: int, data: RecurringTransactionCreate) -> RecurringTransaction:
     # calculate the next run date based on the start date, frequency, and interval
-    next_run_date = calculate_next_run_date(data.start_date, data.frequency, data.interval)
+    next_run_date = data.start_date
 
     # Create a new recurring transaction
     account = db.query(Account).filter(Account.id == data.account_id, Account.user_id == user_id).first()
@@ -123,10 +125,10 @@ def delete_recurring_transaction(db: Session, user_id: int, recurring_transactio
     if not recurring_transaction:
         raise NotFoundException("Recurring transaction not found")
 
-    setattr(recurring_transaction, "is_active", False)
+    # setattr(recurring_transaction, "is_active", False)
 
+    db.delete(recurring_transaction)
     db.commit()
-    db.refresh(recurring_transaction)
 
     return recurring_transaction
 
