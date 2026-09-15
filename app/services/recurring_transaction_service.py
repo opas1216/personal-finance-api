@@ -1,7 +1,4 @@
-import dbm.sqlite3
-
 from sqlalchemy.orm import Session
-
 from app.models import Category
 from app.models import Account
 from app.models import RecurringTransaction
@@ -65,7 +62,7 @@ def create_recurring_transaction(db: Session, user_id: int, data: RecurringTrans
     return recurring_transaction
 
 
-def get_one(db: Session, user_id: int, recurring_transaction_id: int) -> RecurringTransaction:
+def get_recurring_transaction(db: Session, user_id: int, recurring_transaction_id: int) -> RecurringTransaction:
     # Get a single recurring transaction by ID
     recurring_transaction = db.query(RecurringTransaction).filter(RecurringTransaction.user_id == user_id, RecurringTransaction.id == recurring_transaction_id).first()
 
@@ -74,7 +71,7 @@ def get_one(db: Session, user_id: int, recurring_transaction_id: int) -> Recurri
 
     return recurring_transaction
 
-def get_all(db: Session, user_id: int) -> list[RecurringTransaction]:
+def get_recurring_transactions(db: Session, user_id: int) -> list[RecurringTransaction]:
     # Get all recurring transactions for a user
     recurring_transactions = db.query(RecurringTransaction).filter(RecurringTransaction.user_id == user_id).all()
 
@@ -125,12 +122,8 @@ def delete_recurring_transaction(db: Session, user_id: int, recurring_transactio
     if not recurring_transaction:
         raise NotFoundException("Recurring transaction not found")
 
-    # setattr(recurring_transaction, "is_active", False)
-
     db.delete(recurring_transaction)
     db.commit()
-
-    return recurring_transaction
 
 
 
