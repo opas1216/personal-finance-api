@@ -163,3 +163,17 @@ def generate_income_transaction(client, auth_headers, create_usd_account):
         "description": "颱風天放假的薪資"
     }, headers=auth_headers)
     return transaction
+
+
+@pytest.fixture
+def create_category(client, auth_headers):
+    test_data = {
+        "name": "外送",
+        "type": "餐飲"
+    }
+
+    me = client.get("/auth/me", headers=auth_headers)
+    my_id = me.json()["id"]
+
+    category = client.post("/categories/", json=test_data, headers=auth_headers)
+    return category
